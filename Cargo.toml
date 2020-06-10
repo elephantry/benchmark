@@ -1,0 +1,32 @@
+[workspace]
+
+[package]
+name = "test"
+version = "0.1.0"
+authors = ["Sanpi <sanpi@homecomputing.fr>"]
+edition = "2018"
+
+[dependencies]
+async-std = "1.5"
+chrono = "0.4"
+
+[dependencies.pprof]
+version = "0.3"
+optional = true
+features = ["flamegraph"]
+
+[dependencies.postgres]
+version = "0.17"
+features = ["with-chrono-0_4"]
+
+[dependencies.diesel]
+version = "1.4"
+features = ["postgres"]
+
+[dependencies.elephantry]
+version = "0.4"
+features = ["date"]
+
+[dependencies.sqlx]
+version = "0.3"
+features = ["chrono", "postgres"]

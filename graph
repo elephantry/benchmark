@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -euo pipefail
+
+function main()
+{
+    exec 5>&1
+
+    local output=$1
+    local bench=$(cargo bench|tee >(cat - >&5))
+    local csv=$(echo "$bench" | sed -E  's/test ([^:]+)::([^ ]+) +... bench: +([0-9,+]+) ns\/iter \(\+\/- ([0-9,]+)\)/\1;\2;\3;\4/;t;d' | sed 's/,//g')
+    echo $bench
+    csv="tool;steps;mean;stddev
+$csv"
+
+    local r_script='
+error.bar <- function (x, y, upper, lower=upper, length=0.1, ...) {
+    if (length(x) != length(y)
+       | length(y) !=length(lower)
+       | length(lower) != length(upper)
+    ) {
+        stop("vectors must be same length")
+    }
+
+    arrows(x, y + upper, x, y - lower, angle = 90, code = 3, length = length, ...)
+}
+
+args <- commandArgs(trailingOnly = TRUE)
+output <- args[1]
+title <- "Rust SQL client benchmark"
+png(output)
+
+bench <- read.csv(text="'"$csv"'", header=TRUE, sep=";")
+
+tools <- unique(bench$tool)
+steps <- unique(bench$step)
+mean <- t(array(bench$mean, dim=c(length(steps), length(tools)), dimnames=list(steps, tools)))
+stddev <- t(array(bench$stddev, dim=c(length(steps), length(tools)), dimnames=list(steps, tools)))
+
+graph <- barplot(mean, legend=tools, beside = TRUE, ylab="Duration (ns)",
+    ylim=c(0, max(mean) + max(stddev)), main = title, col = rainbow(length(tools)))
+error.bar(graph, mean, stddev)'
+
+    echo "$r_script" | R --no-save --slave --args "$output" 2> /dev/null
+}
+
+main $*
