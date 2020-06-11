@@ -47,12 +47,14 @@ trait Client: Sized {
 
     fn setup(n: usize) -> Result<Self, Self::Error> {
         let dsn = std::env::var("DATABASE_URL").unwrap();
-        let query = "CREATE TABLE users (
+        let query = "DROP TABLE IF EXISTS users;
+
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR NOT NULL,
     hair_color VARCHAR,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
-)";
+);";
 
         let mut conn = Self::create(&dsn)?;
         conn.exec(query)?;
