@@ -34,15 +34,28 @@ fn setup() -> Result<sqlx::PgConnection, sqlx::Error> {
     Ok(client)
 }
 
-fn insert(mut client: &mut sqlx::PgConnection, n: usize) -> Result<(), sqlx::Error> {
+fn insert_users(mut client: &mut sqlx::PgConnection, n: usize) -> Result<(), sqlx::Error> {
+    let mut query = String::from("INSERT INTO users (name, hair_color) VALUES");
     for x in 0..n {
-        async_std::task::block_on({
-            sqlx::query("INSERT INTO users (name, hair_color) VALUES ($1, $2)")
-                .bind(&format!("User {}", x))
-                .bind(&format!("hair color {}", x))
-                .execute(&mut client)
-        })?;
+        query += &format!(
+            "{} (${}, ${})",
+            if x == 0 { "" } else { "," },
+            2 * x + 1,
+            2 * x + 2,
+        );
     }
+    let mut query = sqlx::query(&query);
+
+    for x in 0..n {
+        query = query
+            .bind(format!("User {}", x))
+            .bind(format!("hair color {}", x));
+    }
+
+    async_std::task::block_on({ query.execute(&mut client) })?;
+
+    Ok(())
+}
 
     Ok(())
 }
@@ -56,11 +69,12 @@ fn tear_down(mut client: &mut sqlx::PgConnection) -> Result<(), sqlx::Error> {
 #[bench]
 fn query_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
-    insert(&mut client, 1)?;
+    insert_users(&mut client, 1)?;
 
     b.iter(|| {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT * FROM users LIMIT 1").fetch_one(&mut client)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at FROM users LIMIT 1")
+                .fetch_one(&mut client)
         })
     });
 
@@ -70,11 +84,12 @@ fn query_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
 #[bench]
 fn query_all(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
-    insert(&mut client, 10_000)?;
+    insert_users(&mut client, 10_000)?;
 
     b.iter(|| {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT * FROM users").fetch_all(&mut client)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at FROM users")
+                .fetch_all(&mut client)
         })
     });
 
@@ -85,7 +100,14 @@ fn query_all(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
 fn insert_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
 
-    b.iter(|| insert(&mut client, 1));
+    b.iter(|| {
+        async_std::task::block_on({
+            sqlx::query("INSERT INTO users (name, hair_color) VALUES ($1, $2)")
+                .bind("User 1")
+                .bind("hair color 1")
+                .execute(&mut client)
+        })
+    });
 
     tear_down(&mut client)
 }
@@ -93,11 +115,12 @@ fn insert_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
 #[bench]
 fn fetch_first(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
-    insert(&mut client, 10_000)?;
+    insert_users(&mut client, 10_000)?;
 
     b.iter(|| {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT * FROM users").fetch_one(&mut client)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at FROM users LIMIT 1")
+                .fetch_one(&mut client)
         })
     });
 
@@ -107,14 +130,16 @@ fn fetch_first(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
 #[bench]
 fn fetch_last(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
-    insert(&mut client, 10_000)?;
+    insert_users(&mut client, 10_000)?;
 
     b.iter(|| {
-        let result = async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT * FROM users").fetch_all(&mut client)
+        async_std::task::block_on({
+            sqlx::query_as::<_, User>(
+                "SELECT id, name, hair_color, created_at FROM users OFFSET 9999 LIMIT 1",
+            )
+            .fetch_all(&mut client)
         })
-        .unwrap();
-        result.get(9_999);
+        .unwrap()
     });
 
     tear_down(&mut client)
