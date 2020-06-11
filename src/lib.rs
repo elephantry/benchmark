@@ -113,6 +113,15 @@ macro_rules! bench {
         }
 
         #[bench]
+        fn insert_many(b: &mut test::Bencher) -> Result<(), <$ty as $crate::Client>::Error> {
+            let mut client: $ty = Client::setup(0)?;
+
+            b.iter(|| client.insert(25).unwrap());
+
+            client.tear_down()
+        }
+
+        #[bench]
         fn fetch_first(b: &mut test::Bencher) -> Result<(), <$ty as $crate::Client>::Error> {
             let mut client: $ty = Client::setup(10_000)?;
 

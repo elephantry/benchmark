@@ -38,7 +38,8 @@ mean <- t(array(bench$mean, dim=c(length(steps), length(tools)), dimnames=list(s
 stddev <- t(array(bench$stddev, dim=c(length(steps), length(tools)), dimnames=list(steps, tools)))
 
 graph <- barplot(mean, legend=tools, beside = TRUE, ylab="Duration (ns)",
-    ylim=c(0, max(mean) + max(stddev)), main = title, col = rainbow(length(tools)))
+    ylim=c(0, max(mean) + max(stddev)), main = title,
+    col = rainbow(length(tools)), las = 2)
 error.bar(graph, mean, stddev)'
 
     echo "$r_script" | R --no-save --slave --args "$output" 2> /dev/null
