@@ -30,7 +30,7 @@ pub struct User {
     id: i32,
     name: String,
     hair_color: Option<String>,
-    created_at: diesel::data_types::PgTimestamp,
+    created_at: chrono::NaiveDateTime,
 }
 
 fn setup() -> Result<diesel::pg::PgConnection, String> {
