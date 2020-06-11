@@ -1,3 +1,4 @@
+use criterion::Bencher;
 use sqlx::postgres::PgQueryAs;
 
 #[derive(sqlx::FromRow)]
@@ -136,8 +137,7 @@ fn tear_down(mut client: &mut sqlx::PgConnection) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-#[bench]
-fn query_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn query_one(b: &mut Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 1)?;
 
@@ -151,8 +151,7 @@ fn query_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn query_all(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn query_all(b: &mut Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 10_000)?;
 
@@ -166,8 +165,7 @@ fn query_all(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn insert_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn insert_one(b: &mut Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
 
     b.iter(|| {
@@ -182,8 +180,7 @@ fn insert_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn batch_insert(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn batch_insert(b: &mut Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
 
     b.iter(|| insert_users(&mut client, 100).unwrap());
@@ -191,8 +188,7 @@ fn batch_insert(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn fetch_first(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn fetch_first(b: &mut Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 10_000)?;
 
@@ -206,8 +202,7 @@ fn fetch_first(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn fetch_last(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn fetch_last(b: &mut Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 10_000)?;
 
@@ -224,8 +219,7 @@ fn fetch_last(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn all_relations(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn all_relations(b: &mut Bencher) -> Result<(), sqlx::Error> {
     use std::collections::HashMap;
 
     let mut client = setup()?;
@@ -234,11 +228,10 @@ fn all_relations(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
 
     b.iter(|| {
         async_std::task::block_on(async {
-            let users = sqlx::query_as::<_, User>(
-                "SELECT id, name, hair_color, created_at FROM users",
-            )
-            .fetch_all(&mut client)
-            .await?;
+            let users =
+                sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at FROM users")
+                    .fetch_all(&mut client)
+                    .await?;
 
             let user_id = users.iter().map(|user| user.id).collect::<Vec<_>>();
 
@@ -271,8 +264,7 @@ fn all_relations(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-#[bench]
-fn one_relation(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+pub fn one_relation(b: &mut Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 300)?;
     insert_posts(&mut client, 30)?;

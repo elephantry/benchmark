@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use criterion::Bencher;
 
 mod user {
     #[derive(elephantry::Entity)]
@@ -164,8 +165,7 @@ fn tear_down(client: &elephantry::Pool) -> elephantry::Result<()> {
     Ok(())
 }
 
-#[bench]
-fn query_one(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn query_one(b: &mut Bencher) -> elephantry::Result<()> {
     let client = setup()?;
     insert_users(&client, 1)?;
 
@@ -174,8 +174,7 @@ fn query_one(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&client)
 }
 
-#[bench]
-fn query_all(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn query_all(b: &mut Bencher) -> elephantry::Result<()> {
     let client = setup()?;
     insert_users(&client, 10_000)?;
 
@@ -198,8 +197,7 @@ fn query_all(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&client)
 }
 
-#[bench]
-fn insert_one(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn insert_one(b: &mut Bencher) -> elephantry::Result<()> {
     let mut client = setup()?;
 
     b.iter(|| {
@@ -209,8 +207,7 @@ fn insert_one(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn batch_insert(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn batch_insert(b: &mut Bencher) -> elephantry::Result<()> {
     let mut client = setup()?;
 
     b.iter(|| insert_users(&mut client, 100).unwrap());
@@ -218,8 +215,7 @@ fn batch_insert(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn fetch_first(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn fetch_first(b: &mut Bencher) -> elephantry::Result<()> {
     let client = setup()?;
     insert_users(&client, 10_000)?;
 
@@ -228,8 +224,7 @@ fn fetch_first(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&client)
 }
 
-#[bench]
-fn fetch_last(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn fetch_last(b: &mut Bencher) -> elephantry::Result<()> {
     let client = setup()?;
     insert_users(&client, 10_000)?;
 
@@ -238,8 +233,7 @@ fn fetch_last(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&client)
 }
 
-#[bench]
-fn all_relations(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn all_relations(b: &mut Bencher) -> elephantry::Result<()> {
     let client = setup()?;
     insert_users(&client, 300)?;
     insert_posts(&client, 30)?;
@@ -262,8 +256,7 @@ fn all_relations(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&client)
 }
 
-#[bench]
-fn one_relation(b: &mut test::Bencher) -> elephantry::Result<()> {
+pub fn one_relation(b: &mut Bencher) -> elephantry::Result<()> {
     let client = setup()?;
     insert_users(&client, 300)?;
     insert_posts(&client, 30)?;

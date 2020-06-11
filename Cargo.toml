@@ -5,6 +5,7 @@ name = "test"
 version = "0.1.0"
 authors = ["Sanpi <sanpi@homecomputing.fr>"]
 edition = "2018"
+autobenches = false
 
 [dependencies]
 async-std = "1.5"
@@ -35,5 +36,13 @@ version = "0.3"
 features = ["chrono", "postgres"]
 optional = true
 
+[dependencies.criterion]
+version = "0.3"
+
+[[bench]]
+name = "sql_benchs"
+harness = false
+path = "benches/lib.rs"
+
 [features]
-default = ["diesel", "elephantry", "sqlx", "postgres"]
+default = ["diesel"]

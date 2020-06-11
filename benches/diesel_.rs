@@ -1,3 +1,4 @@
+use criterion::Bencher;
 use diesel::prelude::*;
 
 #[derive(diesel::Insertable)]
@@ -13,7 +14,7 @@ impl NewUser {
     }
 }
 
-diesel::table! {
+table! {
     users {
         id -> Serial,
         name -> VarChar,
@@ -22,7 +23,7 @@ diesel::table! {
     }
 }
 
-diesel::table! {
+table! {
     posts {
         id -> Serial,
         title -> Text,
@@ -130,8 +131,7 @@ fn tear_down(client: &diesel::pg::PgConnection) -> Result<(), String> {
     Ok(())
 }
 
-#[bench]
-fn query_one(b: &mut test::Bencher) -> Result<(), String> {
+pub fn query_one(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
     insert_users(&client, 1).map_err(|e| e.to_string())?;
 
@@ -140,8 +140,7 @@ fn query_one(b: &mut test::Bencher) -> Result<(), String> {
     tear_down(&client)
 }
 
-#[bench]
-fn query_all(b: &mut test::Bencher) -> Result<(), String> {
+pub fn query_all(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
     insert_users(&client, 10_000).map_err(|e| e.to_string())?;
 
@@ -150,8 +149,7 @@ fn query_all(b: &mut test::Bencher) -> Result<(), String> {
     tear_down(&client)
 }
 
-#[bench]
-fn insert_one(b: &mut test::Bencher) -> Result<(), String> {
+pub fn insert_one(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
 
     b.iter(|| {
@@ -169,8 +167,7 @@ fn insert_one(b: &mut test::Bencher) -> Result<(), String> {
     tear_down(&client)
 }
 
-#[bench]
-fn batch_insert(b: &mut test::Bencher) -> Result<(), String> {
+pub fn batch_insert(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
 
     b.iter(|| insert_users(&client, 100).unwrap());
@@ -178,8 +175,7 @@ fn batch_insert(b: &mut test::Bencher) -> Result<(), String> {
     tear_down(&client)
 }
 
-#[bench]
-fn fetch_first(b: &mut test::Bencher) -> Result<(), String> {
+pub fn fetch_first(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
     insert_users(&client, 10_000).map_err(|e| e.to_string())?;
 
@@ -188,8 +184,7 @@ fn fetch_first(b: &mut test::Bencher) -> Result<(), String> {
     tear_down(&client)
 }
 
-#[bench]
-fn fetch_last(b: &mut test::Bencher) -> Result<(), String> {
+pub fn fetch_last(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
     insert_users(&client, 10_000).map_err(|e| e.to_string())?;
 
@@ -198,8 +193,7 @@ fn fetch_last(b: &mut test::Bencher) -> Result<(), String> {
     tear_down(&client)
 }
 
-#[bench]
-fn all_relations(b: &mut test::Bencher) -> Result<(), String> {
+pub fn all_relations(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
     insert_users(&client, 300).map_err(|e| e.to_string())?;
     insert_posts(&client, 30).map_err(|e| e.to_string())?;
@@ -218,8 +212,7 @@ fn all_relations(b: &mut test::Bencher) -> Result<(), String> {
     Ok(())
 }
 
-#[bench]
-fn one_relation(b: &mut test::Bencher) -> Result<(), String> {
+pub fn one_relation(b: &mut Bencher) -> Result<(), String> {
     let client = setup()?;
     insert_users(&client, 300).map_err(|e| e.to_string())?;
     insert_posts(&client, 30).map_err(|e| e.to_string())?;

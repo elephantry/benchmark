@@ -1,3 +1,4 @@
+use criterion::Bencher;
 use postgres::Row;
 
 struct User {
@@ -131,8 +132,7 @@ fn insert_posts(
     Ok(())
 }
 
-#[bench]
-fn query_one(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn query_one(b: &mut Bencher) -> Result<(), postgres::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 1)?;
 
@@ -147,8 +147,7 @@ fn query_one(b: &mut test::Bencher) -> Result<(), postgres::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn query_all(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn query_all(b: &mut Bencher) -> Result<(), postgres::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 10_000)?;
 
@@ -164,8 +163,7 @@ fn query_all(b: &mut test::Bencher) -> Result<(), postgres::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn insert_one(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn insert_one(b: &mut Bencher) -> Result<(), postgres::Error> {
     let mut client = setup()?;
 
     b.iter(|| {
@@ -180,8 +178,7 @@ fn insert_one(b: &mut test::Bencher) -> Result<(), postgres::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn batch_insert(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn batch_insert(b: &mut Bencher) -> Result<(), postgres::Error> {
     let mut client = setup()?;
 
     b.iter(|| insert_users(&mut client, 100).unwrap());
@@ -189,14 +186,16 @@ fn batch_insert(b: &mut test::Bencher) -> Result<(), postgres::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn fetch_first(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn fetch_first(b: &mut Bencher) -> Result<(), postgres::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 10_000)?;
 
     b.iter(|| {
         client
-            .query("SELECT id, name, hair_color, created_at FROM users", &[])
+            .query(
+                "SELECT id, name, hair_color, created_at FROM users LIMIT 1",
+                &[],
+            )
             .unwrap()
             .iter()
             .map(User::from_row)
@@ -207,26 +206,27 @@ fn fetch_first(b: &mut test::Bencher) -> Result<(), postgres::Error> {
     tear_down(&mut client)
 }
 
-#[bench]
-fn fetch_last(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn fetch_last(b: &mut Bencher) -> Result<(), postgres::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 10_000)?;
 
     b.iter(|| {
         client
-            .query("SELECT id, name, hair_color, created_at FROM users", &[])
+            .query(
+                "SELECT id, name, hair_color, created_at FROM users OFFSET 9999 LIMIT 1",
+                &[],
+            )
             .unwrap()
             .iter()
             .map(User::from_row)
-            .nth(9_999)
+            .next()
             .unwrap()
     });
 
     tear_down(&mut client)
 }
 
-#[bench]
-fn all_relations(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn all_relations(b: &mut Bencher) -> Result<(), postgres::Error> {
     use std::collections::HashMap;
 
     let mut client = setup()?;
@@ -273,8 +273,7 @@ fn all_relations(b: &mut test::Bencher) -> Result<(), postgres::Error> {
     Ok(())
 }
 
-#[bench]
-fn one_relation(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+pub fn one_relation(b: &mut Bencher) -> Result<(), postgres::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 300)?;
     insert_posts(&mut client, 30)?;
