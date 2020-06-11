@@ -30,10 +30,13 @@ impl crate::Client for sqlx::PgConnection {
     }
 
     fn insert_x(&mut self, x: usize) -> Result<(), Self::Error> {
+        let user = format!("User {}", x);
+        let hair_color = format!("hair color {}", x);
+
         async_std::task::block_on({
             sqlx::query("INSERT INTO users (name, hair_color) VALUES ($1, $2)")
-                .bind(&format!("User {}", x))
-                .bind(&format!("hair color {}", x))
+                .bind(&user)
+                .bind(&hair_color)
                 .execute(self)
         })
         .map(|_| ())
