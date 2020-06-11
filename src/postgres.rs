@@ -9,6 +9,7 @@ fn setup() -> Result<postgres::Client, postgres::Error> {
     let mut client =
         postgres::Client::connect(&std::env::var("DATABASE_URL").unwrap(), postgres::NoTls)?;
 
+    client.execute("DROP TABLE IF EXISTS users", &[])?;
     client.execute(
         "CREATE TABLE users (
         id SERIAL PRIMARY KEY,

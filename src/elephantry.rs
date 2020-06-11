@@ -37,6 +37,7 @@ mod user {
 
 fn setup() -> elephantry::Result<elephantry::Pool> {
     let client = elephantry::Pool::new(&std::env::var("DATABASE_URL").unwrap())?;
+    client.execute("DROP TABLE IF EXISTS users")?;
     client.execute(
         "CREATE TABLE users (
         id SERIAL PRIMARY KEY,

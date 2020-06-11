@@ -14,7 +14,10 @@ fn setup() -> Result<sqlx::PgConnection, sqlx::Error> {
         sqlx::PgConnection::connect(&std::env::var("DATABASE_URL").unwrap())
     })?;
 
-    async_std::task::block_on({
+    async_std::task::block_on(async {
+        sqlx::query("DROP TABLE IF EXISTS users")
+            .execute(&mut client)
+            .await?;
         sqlx::query(
             "CREATE TABLE users (
             id SERIAL PRIMARY KEY,
@@ -24,6 +27,8 @@ fn setup() -> Result<sqlx::PgConnection, sqlx::Error> {
         )",
         )
         .execute(&mut client)
+        .await?;
+        Result::<_, sqlx::Error>::Ok(())
     })?;
 
     Ok(client)

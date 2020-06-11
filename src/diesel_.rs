@@ -38,6 +38,9 @@ fn setup() -> Result<diesel::pg::PgConnection, String> {
         .map_err(|e| e.to_string())?;
 
     client
+        .execute("DROP TABLE IF EXISTS users")
+        .map_err(|e| e.to_string())?;
+    client
         .execute(
             "CREATE TABLE users (
         id SERIAL PRIMARY KEY,
