@@ -18,15 +18,22 @@ features = ["flamegraph"]
 [dependencies.postgres]
 version = "0.17"
 features = ["with-chrono-0_4"]
+optional = true
 
 [dependencies.diesel]
 version = "1.4"
 features = ["postgres", "chrono"]
+optional = true
 
 [dependencies.elephantry]
 version = "0.4"
 features = ["date"]
+optional = true
 
 [dependencies.sqlx]
 version = "0.3"
 features = ["chrono", "postgres"]
+optional = true
+
+[features]
+default = ["diesel", "elephantry", "sqlx", "postgres"]
