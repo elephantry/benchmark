@@ -50,7 +50,7 @@ fn setup() -> elephantry::Result<elephantry::Pool> {
     Ok(client)
 }
 
-fn insert(client: &elephantry::Pool, n: usize) -> elephantry::Result<()> {
+fn insert_users(client: &elephantry::Pool, n: usize) -> elephantry::Result<()> {
     for x in 0..n {
         client.insert_one::<user::Model>(&user::Entity {
             id: None,
@@ -72,11 +72,9 @@ fn tear_down(client: &elephantry::Pool) -> elephantry::Result<()> {
 #[bench]
 fn query_one(b: &mut test::Bencher) -> elephantry::Result<()> {
     let client = setup()?;
-    insert(&client, 1)?;
+    insert_users(&client, 1)?;
 
-    b.iter(|| {
-        client.find_all::<user::Model>(Some("LIMIT 1")).unwrap();
-    });
+    b.iter(|| client.find_all::<user::Model>(Some("LIMIT 1")).unwrap());
 
     tear_down(&client)
 }
@@ -84,16 +82,16 @@ fn query_one(b: &mut test::Bencher) -> elephantry::Result<()> {
 #[bench]
 fn query_all(b: &mut test::Bencher) -> elephantry::Result<()> {
     let client = setup()?;
-    insert(&client, 10_000)?;
+    insert_users(&client, 10_000)?;
 
     #[cfg(feature = "pprof")]
     let guard = pprof::ProfilerGuard::new(100).unwrap();
 
     b.iter(|| {
-        let _ = client
+        client
             .find_all::<user::Model>(None)
             .unwrap()
-            .collect::<Vec<user::Entity>>();
+            .collect::<Vec<user::Entity>>()
     });
 
     #[cfg(feature = "pprof")]
@@ -110,7 +108,7 @@ fn insert_one(b: &mut test::Bencher) -> elephantry::Result<()> {
     let mut client = setup()?;
 
     b.iter(|| {
-        insert(&mut client, 1).unwrap();
+        insert_users(&mut client, 1).unwrap();
     });
 
     tear_down(&mut client)
@@ -119,11 +117,9 @@ fn insert_one(b: &mut test::Bencher) -> elephantry::Result<()> {
 #[bench]
 fn fetch_first(b: &mut test::Bencher) -> elephantry::Result<()> {
     let client = setup()?;
-    insert(&client, 10_000)?;
+    insert_users(&client, 10_000)?;
 
-    b.iter(|| {
-        client.find_all::<user::Model>(None).unwrap().next();
-    });
+    b.iter(|| client.find_all::<user::Model>(None).unwrap().next());
 
     tear_down(&client)
 }
@@ -131,10 +127,23 @@ fn fetch_first(b: &mut test::Bencher) -> elephantry::Result<()> {
 #[bench]
 fn fetch_last(b: &mut test::Bencher) -> elephantry::Result<()> {
     let client = setup()?;
-    insert(&client, 10_000)?;
+    insert_users(&client, 10_000)?;
+
+    b.iter(|| client.find_all::<user::Model>(None).unwrap().get(9_999));
+
+    tear_down(&client)
+}
 
     b.iter(|| {
-        client.find_all::<user::Model>(None).unwrap().get(9_999);
+    });
+
+    tear_down(&client)
+}
+
+#[bench]
+    let client = setup()?;
+
+    b.iter(|| {
     });
 
     tear_down(&client)
