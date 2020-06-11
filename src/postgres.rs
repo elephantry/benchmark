@@ -5,6 +5,17 @@ pub struct User {
     created_at: chrono::NaiveDateTime,
 }
 
+impl User {
+    fn from_row(row: &postgres::Row) -> Self {
+        User {
+            id: row.get("id"),
+            name: row.get("name"),
+            hair_color: row.get("hair_color"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
 impl crate::Client for postgres::Client {
     type Entity = User;
     type Error = postgres::Error;
@@ -33,12 +44,7 @@ impl crate::Client for postgres::Client {
         let results = self
             .query("SELECT * FROM users", &[])?
             .iter()
-            .map(|row| User {
-                id: row.get("id"),
-                name: row.get("name"),
-                hair_color: row.get("hair_color"),
-                created_at: row.get("created_at"),
-            })
+            .map(User::from_row)
             .collect::<Vec<_>>();
 
         Ok(results)
@@ -48,12 +54,7 @@ impl crate::Client for postgres::Client {
         let result = self
             .query("SELECT * FROM users", &[])?
             .iter()
-            .map(|row| User {
-                id: row.get("id"),
-                name: row.get("name"),
-                hair_color: row.get("hair_color"),
-                created_at: row.get("created_at"),
-            })
+            .map(User::from_row)
             .next()
             .unwrap();
 
@@ -64,12 +65,7 @@ impl crate::Client for postgres::Client {
         let result = self
             .query("SELECT * FROM users", &[])?
             .iter()
-            .map(|row| User {
-                id: row.get("id"),
-                name: row.get("name"),
-                hair_color: row.get("hair_color"),
-                created_at: row.get("created_at"),
-            })
+            .map(User::from_row)
             .nth(9_999)
             .unwrap();
 
