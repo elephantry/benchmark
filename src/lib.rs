@@ -9,7 +9,7 @@ extern crate test;
 
 #[cfg(feature = "diesel")]
 mod diesel_;
-#[cfg(feature "elephantry")]
+#[cfg(feature = "elephantry")]
 mod elephantry;
 #[cfg(feature = "postgres")]
 mod postgres;
@@ -52,8 +52,7 @@ trait Client: Sized {
 
     fn setup(n: usize) -> Result<Self, Self::Error> {
         let dsn = std::env::var("DATABASE_URL").unwrap();
-        let query = "DROP TABLE IF EXISTS users;
-
+        let query = "
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR NOT NULL,
@@ -62,6 +61,7 @@ CREATE TABLE users (
 );";
 
         let mut conn = Self::create(&dsn)?;
+        conn.exec("DROP TABLE IF EXISTS users")?;
         conn.exec(query)?;
         conn.insert(n)?;
         Ok(conn)
