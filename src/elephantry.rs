@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 mod user {
     #[derive(elephantry::Entity)]
     pub struct Entity {
@@ -35,8 +37,73 @@ mod user {
     }
 }
 
+mod post {
+    #[derive(elephantry::Entity)]
+    pub struct Entity {
+        pub id: Option<i32>,
+        pub title: String,
+        pub content: String,
+        pub author: i32,
+    }
+
+    pub struct Model<'a> {
+        connection: &'a elephantry::Connection,
+    }
+
+    impl<'a> Model<'a> {
+        pub fn posts_for_author(
+            &self,
+            user: &super::user::Entity,
+        ) -> elephantry::Result<Vec<Entity>> {
+            use elephantry::{Model, Structure};
+            let query = "SELECT {projection} FROM {posts} WHERE {posts}.author = $1";
+
+            let projection = Self::create_projection();
+
+            let sql = query
+                .replace("{projection}", &projection.to_string())
+                .replace(
+                    "{posts}",
+                    <Self as elephantry::Model>::Structure::relation(),
+                );
+
+            Ok(self
+                .connection
+                .query::<Entity>(&sql, &[&user.id.unwrap()])?
+                .collect())
+        }
+    }
+
+    impl<'a> elephantry::Model<'a> for Model<'a> {
+        type Entity = Entity;
+        type Structure = Structure;
+
+        fn new(connection: &'a elephantry::Connection) -> Self {
+            Self { connection }
+        }
+    }
+
+    pub struct Structure;
+
+    impl elephantry::Structure for Structure {
+        fn relation() -> &'static str {
+            "public.posts"
+        }
+
+        fn primary_key() -> &'static [&'static str] {
+            &["id"]
+        }
+
+        fn definition() -> &'static [&'static str] {
+            &["id", "title", "content", "author"]
+        }
+    }
+}
+
 fn setup() -> elephantry::Result<elephantry::Pool> {
     let client = elephantry::Pool::new(&std::env::var("DATABASE_URL").unwrap())?;
+
+    client.execute("DROP TABLE IF EXISTS posts")?;
     client.execute("DROP TABLE IF EXISTS users")?;
     client.execute(
         "CREATE TABLE users (
@@ -44,6 +111,14 @@ fn setup() -> elephantry::Result<elephantry::Pool> {
         name VARCHAR NOT NULL,
         hair_color VARCHAR,
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )",
+    )?;
+    client.execute(
+        "CREATE TABLE posts (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        author INTEGER REFERENCES users(id) ON DELETE CASCADE ON UPDATE RESTRICT
     )",
     )?;
 
@@ -63,7 +138,27 @@ fn insert_users(client: &elephantry::Pool, n: usize) -> elephantry::Result<()> {
     Ok(())
 }
 
+fn insert_posts(client: &elephantry::Pool, post_count_per_user: i32) -> elephantry::Result<()> {
+    let users = client
+        .find_all::<user::Model>(None)
+        .unwrap()
+        .collect::<Vec<user::Entity>>();
+
+    for user in users {
+        for x in 0..post_count_per_user {
+            client.insert_one::<post::Model>(&post::Entity {
+                id: None,
+                title: format!("Post number {} for user {}", x, user.id.unwrap()),
+                content: "abc".chars().cycle().take(500).collect::<String>(),
+                author: user.id.unwrap(),
+            })?;
+        }
+    }
+    Ok(())
+}
+
 fn tear_down(client: &elephantry::Pool) -> elephantry::Result<()> {
+    client.execute("DROP TABLE posts;")?;
     client.execute("DROP TABLE users;")?;
 
     Ok(())
@@ -143,16 +238,46 @@ fn fetch_last(b: &mut test::Bencher) -> elephantry::Result<()> {
     tear_down(&client)
 }
 
+#[bench]
+fn all_relations(b: &mut test::Bencher) -> elephantry::Result<()> {
+    let client = setup()?;
+    insert_users(&client, 300)?;
+    insert_posts(&client, 30)?;
+
     b.iter(|| {
+        let users = client.find_all::<user::Model>(None).unwrap();
+
+        users
+            .into_iter()
+            .map(|user| {
+                let posts = client
+                    .model::<post::Model>()
+                    .posts_for_author(&user)
+                    .unwrap();
+                (user, posts)
+            })
+            .collect::<Vec<(user::Entity, Vec<post::Entity>)>>()
     });
 
     tear_down(&client)
 }
 
 #[bench]
+fn one_relation(b: &mut test::Bencher) -> elephantry::Result<()> {
     let client = setup()?;
+    insert_users(&client, 300)?;
+    insert_posts(&client, 30)?;
 
     b.iter(|| {
+        let mut pk = HashMap::new();
+        pk.insert("id", &42 as &_);
+        let user = client.find_by_pk::<user::Model>(&pk).unwrap().unwrap();
+
+        let posts = client
+            .model::<post::Model>()
+            .posts_for_author(&user)
+            .unwrap();
+        (user, posts)
     });
 
     tear_down(&client)

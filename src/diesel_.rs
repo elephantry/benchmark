@@ -22,7 +22,19 @@ diesel::table! {
     }
 }
 
-#[derive(diesel::Queryable)]
+diesel::table! {
+    posts {
+        id -> Serial,
+        title -> Text,
+        content -> Text,
+        author -> Integer,
+    }
+}
+
+allow_tables_to_appear_in_same_query!(users, posts);
+joinable!(posts -> users (author));
+
+#[derive(diesel::Queryable, Identifiable)]
 pub struct User {
     id: i32,
     name: String,
@@ -30,10 +42,22 @@ pub struct User {
     created_at: chrono::NaiveDateTime,
 }
 
+#[derive(Queryable, Associations, Identifiable)]
+#[belongs_to(User, foreign_key = "author")]
+pub struct Post {
+    id: i32,
+    title: String,
+    content: String,
+    author: i32,
+}
+
 fn setup() -> Result<diesel::pg::PgConnection, String> {
     let client = diesel::pg::PgConnection::establish(&std::env::var("DATABASE_URL").unwrap())
         .map_err(|e| e.to_string())?;
 
+    client
+        .execute("DROP TABLE IF EXISTS posts")
+        .map_err(|e| e.to_string())?;
     client
         .execute("DROP TABLE IF EXISTS users")
         .map_err(|e| e.to_string())?;
@@ -44,6 +68,16 @@ fn setup() -> Result<diesel::pg::PgConnection, String> {
         name VARCHAR NOT NULL,
         hair_color VARCHAR,
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )",
+        )
+        .map_err(|e| e.to_string())?;
+    client
+        .execute(
+            "CREATE TABLE posts (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        author INTEGER REFERENCES users(id) ON DELETE CASCADE ON UPDATE RESTRICT
     )",
         )
         .map_err(|e| e.to_string())?;
@@ -63,7 +97,32 @@ fn insert_users(client: &diesel::pg::PgConnection, n: usize) -> QueryResult<()> 
     Ok(())
 }
 
+fn insert_posts(client: &PgConnection, post_count_per_user: i32) -> QueryResult<()> {
+    let user_ids = users::table.select(users::id).load::<i32>(client)?;
+
+    let posts = user_ids
+        .into_iter()
+        .flat_map(|user_id| {
+            (0..post_count_per_user).map(move |post_number| {
+                (
+                    posts::title.eq(format!("Post number {} for user {}", post_number, user_id)),
+                    posts::content.eq("abc".chars().cycle().take(500).collect::<String>()),
+                    posts::author.eq(user_id),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+
+    diesel::insert_into(posts::table)
+        .values(&posts)
+        .execute(client)?;
+    Ok(())
+}
+
 fn tear_down(client: &diesel::pg::PgConnection) -> Result<(), String> {
+    client
+        .execute("DROP TABLE posts")
+        .map_err(|e| e.to_string())?;
     client
         .execute("DROP TABLE users;")
         .map_err(|e| e.to_string())?;
@@ -139,9 +198,37 @@ fn fetch_last(b: &mut test::Bencher) -> Result<(), String> {
     tear_down(&client)
 }
 
+#[bench]
+fn all_relations(b: &mut test::Bencher) -> Result<(), String> {
+    let client = setup()?;
+    insert_users(&client, 300).map_err(|e| e.to_string())?;
+    insert_posts(&client, 30).map_err(|e| e.to_string())?;
+
     b.iter(|| {
-        let _ = users::table.load::<User>(&client).unwrap()[9_999];
+        let users = users::table.load::<User>(&client).unwrap();
+        let posts = Post::belonging_to(&users)
+            .load::<Post>(&client)
+            .unwrap()
+            .grouped_by(&users);
+
+        let user_with_posts: Vec<(User, Vec<Post>)> = users.into_iter().zip(posts).collect();
+        user_with_posts
     });
 
-    tear_down(&client)
+    Ok(())
+}
+
+#[bench]
+fn one_relation(b: &mut test::Bencher) -> Result<(), String> {
+    let client = setup()?;
+    insert_users(&client, 300).map_err(|e| e.to_string())?;
+    insert_posts(&client, 30).map_err(|e| e.to_string())?;
+
+    b.iter(|| {
+        let users = users::table.find(42).first::<User>(&client).unwrap();
+        let posts = Post::belonging_to(&users).load::<Post>(&client).unwrap();
+        (users, posts)
+    });
+
+    Ok(())
 }

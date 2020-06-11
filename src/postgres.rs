@@ -18,10 +18,29 @@ impl User {
     }
 }
 
+pub struct Post {
+    id: i32,
+    title: String,
+    content: String,
+    author: i32,
+}
+
+impl Post {
+    fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            title: row.get("title"),
+            content: row.get("content"),
+            author: row.get("author"),
+        }
+    }
+}
+
 fn setup() -> Result<postgres::Client, postgres::Error> {
     let mut client =
         postgres::Client::connect(&std::env::var("DATABASE_URL").unwrap(), postgres::NoTls)?;
 
+    client.execute("DROP TABLE IF EXISTS posts", &[])?;
     client.execute("DROP TABLE IF EXISTS users", &[])?;
     client.execute(
         "CREATE TABLE users (
@@ -32,11 +51,21 @@ fn setup() -> Result<postgres::Client, postgres::Error> {
     )",
         &[],
     )?;
+    client.execute(
+        "CREATE TABLE posts (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        author INTEGER REFERENCES users(id) ON DELETE CASCADE ON UPDATE RESTRICT
+    )",
+        &[],
+    )?;
 
     Ok(client)
 }
 
 fn tear_down(client: &mut postgres::Client) -> Result<(), postgres::Error> {
+    client.execute("DROP TABLE posts;", &[])?;
     client.execute("DROP TABLE users;", &[])?;
 
     Ok(())
@@ -194,4 +223,86 @@ fn fetch_last(b: &mut test::Bencher) -> Result<(), postgres::Error> {
     });
 
     tear_down(&mut client)
+}
+
+#[bench]
+fn all_relations(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+    use std::collections::HashMap;
+
+    let mut client = setup()?;
+    insert_users(&mut client, 300)?;
+    insert_posts(&mut client, 30)?;
+
+    b.iter(|| {
+        let users = client
+            .query("SELECT id, name, hair_color, created_at FROM users", &[])
+            .unwrap()
+            .iter()
+            .map(User::from_row)
+            .collect::<Vec<_>>();
+
+        let user_id = users.iter().map(|user| user.id).collect::<Vec<_>>();
+
+        let posts = client
+            .query(
+                "SELECT id, title, content, author FROM posts WHERE author = ANY($1)",
+                &[&user_id],
+            )
+            .unwrap()
+            .iter()
+            .map(Post::from_row)
+            .collect::<Vec<_>>();
+
+        let mut users_with_post = users
+            .into_iter()
+            .map(|user| (user.id, (user, Vec::new())))
+            .collect::<HashMap<_, _>>();
+
+        for post in posts {
+            users_with_post.get_mut(&post.author).unwrap().1.push(post);
+        }
+
+        let users_with_post = users_with_post
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect::<Vec<_>>();
+
+        users_with_post
+    });
+
+    Ok(())
+}
+
+#[bench]
+fn one_relation(b: &mut test::Bencher) -> Result<(), postgres::Error> {
+    let mut client = setup()?;
+    insert_users(&mut client, 300)?;
+    insert_posts(&mut client, 30)?;
+
+    b.iter(|| {
+        let user = client
+            .query(
+                "SELECT id, name, hair_color, created_at FROM users WHERE id = $1",
+                &[&42_i32 as _],
+            )
+            .unwrap()
+            .iter()
+            .map(User::from_row)
+            .next()
+            .unwrap();
+
+        let posts = client
+            .query(
+                "SELECT id, title, content, author FROM posts WHERE author = $1",
+                &[&user.id],
+            )
+            .unwrap()
+            .iter()
+            .map(Post::from_row)
+            .collect::<Vec<_>>();
+
+        (user, posts)
+    });
+
+    Ok(())
 }
