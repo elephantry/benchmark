@@ -111,6 +111,15 @@ fn insert_one(b: &mut test::Bencher) -> Result<(), String> {
 }
 
 #[bench]
+fn batch_insert(b: &mut test::Bencher) -> Result<(), String> {
+    let client = setup()?;
+
+    b.iter(|| insert_users(&client, 100).unwrap());
+
+    tear_down(&client)
+}
+
+#[bench]
 fn fetch_first(b: &mut test::Bencher) -> Result<(), String> {
     let client = setup()?;
     insert_users(&client, 10_000).map_err(|e| e.to_string())?;

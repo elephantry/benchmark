@@ -113,6 +113,15 @@ fn insert_one(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
 }
 
 #[bench]
+fn batch_insert(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
+    let mut client = setup()?;
+
+    b.iter(|| insert_users(&mut client, 100).unwrap());
+
+    tear_down(&mut client)
+}
+
+#[bench]
 fn fetch_first(b: &mut test::Bencher) -> Result<(), sqlx::Error> {
     let mut client = setup()?;
     insert_users(&mut client, 10_000)?;
