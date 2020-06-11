@@ -9,10 +9,7 @@ pub struct NewUser {
 
 impl NewUser {
     pub fn new(name: String, hair_color: Option<String>) -> Self {
-        NewUser {
-            name: name,
-            hair_color: hair_color,
-        }
+        NewUser { name, hair_color }
     }
 }
 
@@ -54,16 +51,14 @@ fn setup() -> Result<diesel::pg::PgConnection, String> {
     Ok(client)
 }
 
-fn insert(client: &diesel::pg::PgConnection, n: usize) -> Result<(), String> {
-    for x in 0..n {
-        diesel::insert_into(users::table)
-            .values(&NewUser::new(
-                format!("User {}", x),
-                Some(format!("hair color {}", x)),
-            ))
-            .execute(client)
-            .map_err(|e| e.to_string())?;
-    }
+fn insert_users(client: &diesel::pg::PgConnection, n: usize) -> QueryResult<()> {
+    let entries = (0..n)
+        .map(|x| NewUser::new(format!("User {}", x), Some(format!("hair color {}", x))))
+        .collect::<Vec<_>>();
+
+    diesel::insert_into(users::table)
+        .values(&entries)
+        .execute(client)?;
 
     Ok(())
 }
@@ -79,7 +74,7 @@ fn tear_down(client: &diesel::pg::PgConnection) -> Result<(), String> {
 #[bench]
 fn query_one(b: &mut test::Bencher) -> Result<(), String> {
     let client = setup()?;
-    insert(&client, 1)?;
+    insert_users(&client, 1).map_err(|e| e.to_string())?;
 
     b.iter(|| users::table.first::<User>(&client).unwrap());
 
@@ -89,21 +84,27 @@ fn query_one(b: &mut test::Bencher) -> Result<(), String> {
 #[bench]
 fn query_all(b: &mut test::Bencher) -> Result<(), String> {
     let client = setup()?;
-    insert(&client, 10_000)?;
+    insert_users(&client, 10_000).map_err(|e| e.to_string())?;
 
-    b.iter(|| {
-        users::table.load::<User>(&client).unwrap();
-    });
+    b.iter(|| users::table.load::<User>(&client).unwrap());
 
     tear_down(&client)
 }
 
 #[bench]
 fn insert_one(b: &mut test::Bencher) -> Result<(), String> {
-    let mut client = setup()?;
+    let client = setup()?;
 
     b.iter(|| {
-        insert(&mut client, 1).unwrap();
+        // Use a plain insert here to prevent constructing strings inside the
+        // benchmark loop
+        diesel::insert_into(users::table)
+            .values((
+                users::name.eq("User 0"),
+                users::hair_color.eq("hair color 0"),
+            ))
+            .execute(&client)
+            .unwrap()
     });
 
     tear_down(&client)
@@ -112,11 +113,9 @@ fn insert_one(b: &mut test::Bencher) -> Result<(), String> {
 #[bench]
 fn fetch_first(b: &mut test::Bencher) -> Result<(), String> {
     let client = setup()?;
-    insert(&client, 10_000)?;
+    insert_users(&client, 10_000).map_err(|e| e.to_string())?;
 
-    b.iter(|| {
-        let _ = users::table.load::<User>(&client).unwrap()[0];
-    });
+    b.iter(|| users::table.limit(1).load::<User>(&client).unwrap());
 
     tear_down(&client)
 }
@@ -124,7 +123,12 @@ fn fetch_first(b: &mut test::Bencher) -> Result<(), String> {
 #[bench]
 fn fetch_last(b: &mut test::Bencher) -> Result<(), String> {
     let client = setup()?;
-    insert(&client, 10_000)?;
+    insert_users(&client, 10_000).map_err(|e| e.to_string())?;
+
+    b.iter(|| users::table.offset(9_999).first::<User>(&client).unwrap());
+
+    tear_down(&client)
+}
 
     b.iter(|| {
         let _ = users::table.load::<User>(&client).unwrap()[9_999];
