@@ -42,7 +42,7 @@ impl crate::Client for postgres::Client {
 
     fn fetch_all(&mut self) -> Result<Vec<Self::Entity>, Self::Error> {
         let results = self
-            .query("SELECT * FROM users", &[])?
+            .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
             .collect::<Vec<_>>();
@@ -52,7 +52,7 @@ impl crate::Client for postgres::Client {
 
     fn fetch_first(&mut self) -> Result<Self::Entity, Self::Error> {
         let result = self
-            .query("SELECT * FROM users", &[])?
+            .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
             .next()
@@ -63,7 +63,7 @@ impl crate::Client for postgres::Client {
 
     fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error> {
         let result = self
-            .query("SELECT * FROM users", &[])?
+            .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
             .nth(9_999)

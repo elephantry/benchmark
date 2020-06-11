@@ -41,19 +41,19 @@ impl crate::Client for sqlx::PgConnection {
 
     fn fetch_all(&mut self) -> Result<Vec<Self::Entity>, Self::Error> {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT * FROM users").fetch_all(self)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at FROM users").fetch_all(self)
         })
     }
 
     fn fetch_first(&mut self) -> Result<Self::Entity, Self::Error> {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT * FROM users").fetch_one(self)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at FROM users").fetch_one(self)
         })
     }
 
     fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error> {
         let results = async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT * FROM users").fetch_all(self)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at FROM users").fetch_all(self)
         })?;
 
         Ok(results[9_999].clone())
