@@ -8,7 +8,7 @@ mod user {
     }
 
     impl Entity {
-        fn new(x: usize) -> Self {
+        pub fn new(x: usize) -> Self {
             Self {
                 id: None,
                 name: format!("User {}", x),
@@ -46,7 +46,7 @@ mod user {
     }
 }
 
-impl crate::Client for elephantry::Connection {
+impl crate::Client for elephantry::Pool {
     type Entity = user::Entity;
     type Error = elephantry::Error;
 

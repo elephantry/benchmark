@@ -20,7 +20,7 @@ impl crate::Client for sqlx::PgConnection {
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
-        async_std::task::block_on({ sqlx::query(query).execute(self) }).map(|_| ())
+        async_std::task::block_on(sqlx::query(query).execute(self)).map(|_| ())
     }
 
     fn tear_down(&mut self) -> Result<(), Self::Error> {
