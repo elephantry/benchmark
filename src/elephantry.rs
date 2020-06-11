@@ -7,6 +7,17 @@ mod user {
         pub created_at: Option<chrono::NaiveDateTime>,
     }
 
+    impl Entity {
+        fn new(x: usize) -> Self {
+            Self {
+                id: None,
+                name: format!("User {}", x),
+                hair_color: Some(format!("hair color {}", x)),
+                created_at: None,
+            }
+        }
+    }
+
     pub struct Model;
 
     impl<'a> elephantry::Model<'a> for Model {
@@ -35,106 +46,42 @@ mod user {
     }
 }
 
-fn setup() -> elephantry::Result<elephantry::Pool> {
-    let client = elephantry::Pool::new(&std::env::var("DATABASE_URL").unwrap())?;
-    client.execute(
-        "CREATE TABLE users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR NOT NULL,
-        hair_color VARCHAR,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )",
-    )?;
+impl crate::Client for elephantry::Connection {
+    type Entity = user::Entity;
+    type Error = elephantry::Error;
 
-    Ok(client)
-}
-
-fn insert(client: &elephantry::Pool, n: usize) -> elephantry::Result<()> {
-    for x in 0..n {
-        client.insert_one::<user::Model>(&user::Entity {
-            id: None,
-            name: format!("User {}", x),
-            hair_color: Some(format!("hair color {}", x)),
-            created_at: None,
-        })?;
+    fn create(dsn: &str) -> Result<Self, Self::Error> {
+        elephantry::Pool::new(dsn)
     }
 
-    Ok(())
+    fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
+        self.execute(&query).map(|_| ())
+    }
+
+    fn insert_x(&mut self, x: usize) -> Result<(), Self::Error> {
+        self.insert_one::<user::Model>(&user::Entity::new(x))
+            .map(|_| ())
+    }
+
+    fn fetch_all(&mut self) -> Result<Vec<Self::Entity>, Self::Error> {
+        let results = self
+            .find_all::<user::Model>(None)?
+            .collect::<Vec<Self::Entity>>();
+
+        Ok(results)
+    }
+
+    fn fetch_first(&mut self) -> Result<Self::Entity, Self::Error> {
+        let result = self.find_all::<user::Model>(None)?.next();
+
+        Ok(result.unwrap())
+    }
+
+    fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error> {
+        let result = self.find_all::<user::Model>(None)?.get(9_999);
+
+        Ok(result)
+    }
 }
 
-fn tear_down(client: &elephantry::Pool) -> elephantry::Result<()> {
-    client.execute("DROP TABLE users;")?;
-
-    Ok(())
-}
-
-#[bench]
-fn query_one(b: &mut test::Bencher) -> elephantry::Result<()> {
-    let client = setup()?;
-    insert(&client, 1)?;
-
-    b.iter(|| {
-        client.find_all::<user::Model>(Some("LIMIT 1")).unwrap();
-    });
-
-    tear_down(&client)
-}
-
-#[bench]
-fn query_all(b: &mut test::Bencher) -> elephantry::Result<()> {
-    let client = setup()?;
-    insert(&client, 10_000)?;
-
-    #[cfg(feature = "pprof")]
-    let guard = pprof::ProfilerGuard::new(100).unwrap();
-
-    b.iter(|| {
-        let _ = client
-            .find_all::<user::Model>(None)
-            .unwrap()
-            .collect::<Vec<user::Entity>>();
-    });
-
-    #[cfg(feature = "pprof")]
-    if let Ok(report) = guard.report().build() {
-        let file = std::fs::File::create("flamegraph.svg").unwrap();
-        report.flamegraph(file).unwrap();
-    };
-
-    tear_down(&client)
-}
-
-#[bench]
-fn insert_one(b: &mut test::Bencher) -> elephantry::Result<()> {
-    let mut client = setup()?;
-
-    b.iter(|| {
-        insert(&mut client, 1).unwrap();
-    });
-
-    tear_down(&mut client)
-}
-
-#[bench]
-fn fetch_first(b: &mut test::Bencher) -> elephantry::Result<()> {
-    let client = setup()?;
-    insert(&client, 10_000)?;
-
-    b.iter(|| {
-        client.find_all::<user::Model>(None).unwrap().next();
-    });
-
-    tear_down(&client)
-}
-
-#[bench]
-fn fetch_last(b: &mut test::Bencher) -> elephantry::Result<()> {
-    let client = setup()?;
-    insert(&client, 10_000)?;
-
-    b.iter(|| {
-        client.find_all::<user::Model>(None).unwrap().get(9_999);
-    });
-
-    tear_down(&client)
-}
+crate::bench! {elephantry::Pool}

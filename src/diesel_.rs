@@ -8,10 +8,10 @@ pub struct NewUser {
 }
 
 impl NewUser {
-    pub fn new(name: String, hair_color: Option<String>) -> Self {
+    pub fn new(x: usize) -> Self {
         NewUser {
-            name: name,
-            hair_color: hair_color,
+            name: format!("User {}", x),
+            hair_color: Some(format!("hair color {}", x)),
         }
     }
 }
@@ -25,7 +25,7 @@ diesel::table! {
     }
 }
 
-#[derive(diesel::Queryable)]
+#[derive(Clone, diesel::Queryable)]
 pub struct User {
     id: i32,
     name: String,
@@ -33,99 +33,46 @@ pub struct User {
     created_at: diesel::data_types::PgTimestamp,
 }
 
-fn setup() -> Result<diesel::pg::PgConnection, String> {
-    let client = diesel::pg::PgConnection::establish(&std::env::var("DATABASE_URL").unwrap())
-        .map_err(|e| e.to_string())?;
+impl crate::Client for diesel::pg::PgConnection {
+    type Entity = User;
+    type Error = diesel::result::Error;
 
-    client
-        .execute(
-            "CREATE TABLE users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR NOT NULL,
-        hair_color VARCHAR,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )",
-        )
-        .map_err(|e| e.to_string())?;
+    fn create(dsn: &str) -> Result<Self, Self::Error> {
+        let client = diesel::pg::PgConnection::establish(dsn).unwrap();
 
-    Ok(client)
-}
-
-fn insert(client: &diesel::pg::PgConnection, n: usize) -> Result<(), String> {
-    for x in 0..n {
-        diesel::insert_into(users::table)
-            .values(&NewUser::new(
-                format!("User {}", x),
-                Some(format!("hair color {}", x)),
-            ))
-            .execute(client)
-            .map_err(|e| e.to_string())?;
+        Ok(client)
     }
 
-    Ok(())
+    fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
+        self.execute(query).map(|_| ())
+    }
+
+    fn tear_down(&mut self) -> Result<(), Self::Error> {
+        self.execute("DROP TABLE users;").map(|_| ())
+    }
+
+    fn insert_x(&mut self, x: usize) -> Result<(), Self::Error> {
+        diesel::insert_into(users::table)
+            .values(&NewUser::new(x))
+            .execute(self)
+            .map(|_| ())
+    }
+
+    fn fetch_all(&mut self) -> Result<Vec<Self::Entity>, Self::Error> {
+        users::table.load::<Self::Entity>(self)
+    }
+
+    fn fetch_first(&mut self) -> Result<Self::Entity, Self::Error> {
+        let results = users::table.load::<User>(self)?;
+
+        Ok(results[0].clone())
+    }
+
+    fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error> {
+        let results = users::table.load::<User>(self)?;
+
+        Ok(results[9_999].clone())
+    }
 }
 
-fn tear_down(client: &diesel::pg::PgConnection) -> Result<(), String> {
-    client
-        .execute("DROP TABLE users;")
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-#[bench]
-fn query_one(b: &mut test::Bencher) -> Result<(), String> {
-    let client = setup()?;
-    insert(&client, 1)?;
-
-    b.iter(|| users::table.first::<User>(&client).unwrap());
-
-    tear_down(&client)
-}
-
-#[bench]
-fn query_all(b: &mut test::Bencher) -> Result<(), String> {
-    let client = setup()?;
-    insert(&client, 10_000)?;
-
-    b.iter(|| {
-        users::table.load::<User>(&client).unwrap();
-    });
-
-    tear_down(&client)
-}
-
-#[bench]
-fn insert_one(b: &mut test::Bencher) -> Result<(), String> {
-    let mut client = setup()?;
-
-    b.iter(|| {
-        insert(&mut client, 1).unwrap();
-    });
-
-    tear_down(&client)
-}
-
-#[bench]
-fn fetch_first(b: &mut test::Bencher) -> Result<(), String> {
-    let client = setup()?;
-    insert(&client, 10_000)?;
-
-    b.iter(|| {
-        let _ = users::table.load::<User>(&client).unwrap()[0];
-    });
-
-    tear_down(&client)
-}
-
-#[bench]
-fn fetch_last(b: &mut test::Bencher) -> Result<(), String> {
-    let client = setup()?;
-    insert(&client, 10_000)?;
-
-    b.iter(|| {
-        let _ = users::table.load::<User>(&client).unwrap()[9_999];
-    });
-
-    tear_down(&client)
-}
+crate::bench! {diesel::pg::PgConnection}
