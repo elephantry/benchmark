@@ -9,6 +9,8 @@ extern crate test;
 
 #[cfg(feature = "diesel")]
 mod diesel_;
+#[cfg(feature = "libpq")]
+mod libpq;
 #[cfg(feature = "elephantry")]
 mod elephantry;
 #[cfg(feature = "postgres")]

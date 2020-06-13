@@ -2,6 +2,7 @@
 
 [diesel](https://crates.io/crates/diesel)
 · [elephantry](https://crates.io/crates/elephantry)
+· [libpq](https://crates.io/crates/libpq)
 · [postgres](https://crates.io/crates/postgres)
 · [sqlx](https://crates.io/crates/sqlx)
 
