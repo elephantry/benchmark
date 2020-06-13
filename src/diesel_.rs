@@ -65,7 +65,7 @@ impl crate::Client for diesel::pg::PgConnection {
     fn fetch_first(&mut self) -> Result<Self::Entity, Self::Error> {
         let results = users::table.load::<User>(self)?;
 
-        Ok(results[0].clone())
+        Ok(results.first().unwrap().clone())
     }
 
     fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error> {
