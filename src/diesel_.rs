@@ -58,6 +58,14 @@ impl crate::Client for diesel::pg::PgConnection {
             .map(|_| ())
     }
 
+    fn insert(&mut self, n: usize) -> Result<(), Self::Error> {
+        let vals = (0..n).map(NewUser::new).collect::<Vec<_>>();
+        diesel::insert_into(users::table)
+            .values(&vals)
+            .execute(self)
+            .map(|_| ())
+    }
+
     fn fetch_all(&mut self) -> Result<Vec<Self::Entity>, Self::Error> {
         users::table.load::<Self::Entity>(self)
     }
