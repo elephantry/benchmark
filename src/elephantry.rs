@@ -40,7 +40,7 @@ mod user {
             &["id"]
         }
 
-        fn definition() -> &'static [&'static str] {
+        fn columns() -> &'static [&'static str] {
             &["id", "name", "hair_color", "created_at"]
         }
     }
