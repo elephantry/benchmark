@@ -11,7 +11,7 @@ async-std = "1.5"
 chrono = "0.4"
 
 [dependencies.libpq]
-version = "0.7"
+version = "0.12"
 optional = true
 
 [dependencies.pprof]
