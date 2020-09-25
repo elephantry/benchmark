@@ -19,8 +19,8 @@ mod postgres;
 mod sqlx;
 
 trait Client: Sized {
-    type Entity: Sized;
     type Error: Sized;
+    type User: Sized;
 
     /**
      * Creates a new database connection.
@@ -33,28 +33,30 @@ trait Client: Sized {
     fn exec(&mut self, query: &str) -> Result<(), Self::Error>;
 
     /**
-     * Insert one row. `x` can be used as unique id.
+     * Insert one row in user table.
      */
-    fn insert_x(&mut self, x: usize) -> Result<(), Self::Error>;
+    fn insert_user(&mut self) -> Result<(), Self::Error>;
 
     /**
      * Fetch all rows of a table.
      */
-    fn fetch_all(&mut self) -> Result<Vec<Self::Entity>, Self::Error>;
+    fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error>;
 
     /**
      * Fetch only the first result of a rows set.
      */
-    fn fetch_first(&mut self) -> Result<Self::Entity, Self::Error>;
+    fn fetch_first(&mut self) -> Result<Self::User, Self::Error>;
 
     /**
      * Fetch only the last result of a rows set.
      */
-    fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error>;
+    fn fetch_last(&mut self) -> Result<Self::User, Self::Error>;
+
+    fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error>;
+
+    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error>;
 
     fn setup(n: usize) -> Result<Self, Self::Error> {
-        pretty_env_logger::try_init().ok();
-
         let dsn = std::env::var("DATABASE_URL").unwrap();
 
         let mut conn = Self::create(&dsn)?;
@@ -65,12 +67,15 @@ trait Client: Sized {
     }
 
     fn tear_down(&mut self) -> Result<(), Self::Error> {
-        self.exec("DROP TABLE users").map(|_| ())
+        self.exec("DROP TABLE IF EXISTS posts").map(|_| ())?;
+        self.exec("DROP TABLE IF EXISTS users").map(|_| ())?;
+
+        Ok(())
     }
 
-    fn insert(&mut self, n: usize) -> Result<(), Self::Error> {
-        for x in 0..n {
-            self.insert_x(x)?;
+    fn insert_users(&mut self, n: usize) -> Result<(), Self::Error> {
+        for _ in 0..n {
+            self.insert_user()?;
         }
 
         Ok(())
@@ -104,7 +109,7 @@ macro_rules! bench {
         fn insert_one(b: &mut test::Bencher) -> Result<(), <$ty as $crate::Client>::Error> {
             let mut client: $ty = Client::setup(0)?;
 
-            b.iter(|| client.insert(1).unwrap());
+            b.iter(|| client.insert_users(1).unwrap());
 
             client.tear_down()
         }
@@ -113,7 +118,7 @@ macro_rules! bench {
         fn insert_many(b: &mut test::Bencher) -> Result<(), <$ty as $crate::Client>::Error> {
             let mut client: $ty = Client::setup(0)?;
 
-            b.iter(|| client.insert(25).unwrap());
+            b.iter(|| client.insert_users(25).unwrap());
 
             client.tear_down()
         }
@@ -132,6 +137,24 @@ macro_rules! bench {
             let mut client: $ty = Client::setup(10_000)?;
 
             b.iter(|| client.fetch_last().unwrap());
+
+            client.tear_down()
+        }
+
+        #[bench]
+        fn one_relation(b: &mut test::Bencher) -> Result<(), <$ty as $crate::Client>::Error> {
+            let mut client: $ty = Client::setup(300)?;
+
+            b.iter(|| client.one_relation().unwrap());
+
+            client.tear_down()
+        }
+
+        #[bench]
+        fn all_relations(b: &mut test::Bencher) -> Result<(), <$ty as $crate::Client>::Error> {
+            let mut client: $ty = Client::setup(300)?;
+
+            b.iter(|| client.all_relations().unwrap());
 
             client.tear_down()
         }

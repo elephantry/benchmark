@@ -9,10 +9,10 @@ function main()
     local output=$1
     local bench=$(cargo bench|tee >(cat - >&5))
     local csv=$(echo "$bench" | sed -E  's/test ([^:]+)::([^ ]+) +... bench: +([0-9,+]+) ns\/iter \(\+\/- ([0-9,]+)\)/\1;\2;\3;\4/;t;d' | sed 's/,//g')
-    echo $bench
     csv="tool;steps;mean;stddev
 $csv"
 
+echo $csv
     local r_script='
 error.bar <- function (x, y, upper, lower=upper, length=0.1, ...) {
     if (length(x) != length(y)
@@ -37,6 +37,7 @@ steps <- unique(bench$step)
 mean <- t(array(bench$mean, dim=c(length(steps), length(tools)), dimnames=list(steps, tools)))
 stddev <- t(array(bench$stddev, dim=c(length(steps), length(tools)), dimnames=list(steps, tools)))
 
+op <- par(mar=c(6, 4, 4, 2))
 graph <- barplot(mean, legend=tools, beside = TRUE, ylab="Duration (ns)",
     ylim=c(0, max(mean) + max(stddev)), main = title,
     col = rainbow(length(tools)), las = 2)

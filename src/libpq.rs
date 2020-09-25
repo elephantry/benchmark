@@ -3,6 +3,7 @@ pub struct User {
     pub name: String,
     pub hair_color: Option<String>,
     pub created_at: Option<chrono::NaiveDateTime>,
+    pub posts: Vec<String>,
 }
 
 impl User {
@@ -16,11 +17,23 @@ impl User {
         } else {
             String::from_utf8(result.value(x, 2).unwrap().to_vec()).ok()
         };
-        let created_at = if result.is_null(x, 2) {
+        let created_at = if result.is_null(x, 3) {
             None
         } else {
-            let s = String::from_utf8(result.value(x, 1).unwrap().to_vec()).unwrap();
+            let s = String::from_utf8(result.value(x, 3).unwrap().to_vec()).unwrap();
             chrono::NaiveDateTime::parse_from_str(&s, "%F %T").ok()
+        };
+
+        let posts = if result.nfields() >= 5 {
+            String::from_utf8(result.value(x, 4).unwrap_or_default().to_vec())
+                .unwrap()
+                .trim_matches(|c| c == '{' || c == '}')
+                .split(",")
+                .map(|x| x.trim_matches('"').to_string())
+                .collect()
+        }
+        else {
+            Vec::new()
         };
 
         let user = User {
@@ -28,6 +41,7 @@ impl User {
             name,
             hair_color,
             created_at,
+            posts,
         };
 
         Ok(user)
@@ -44,8 +58,8 @@ fn to_result(result: &libpq::Result) -> Result<&libpq::Result, String> {
 }
 
 impl crate::Client for libpq::Connection{
-    type Entity = User;
     type Error = String;
+    type User = User;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         libpq::Connection::new(dsn)
@@ -57,9 +71,9 @@ impl crate::Client for libpq::Connection{
         to_result(&result).map(|_| ())
     }
 
-    fn insert_x(&mut self, x: usize) -> Result<(), Self::Error> {
-        let name = format!("User {}\0", x);
-        let hair_color = format!("hair color {}\0", x);
+    fn insert_user(&mut self) -> Result<(), Self::Error> {
+        let name = "User\0";
+        let hair_color = "hair color\0";
 
         let result = libpq::Connection::exec_params(
             self,
@@ -73,7 +87,7 @@ impl crate::Client for libpq::Connection{
         to_result(&result).map(|_| ())
     }
 
-    fn fetch_all(&mut self) -> Result<Vec<Self::Entity>, Self::Error> {
+    fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
         let result = libpq::Connection::exec(self, "select id, name, hair_color, created_at from users");
 
         let mut users = Vec::new();
@@ -85,16 +99,62 @@ impl crate::Client for libpq::Connection{
         Ok(users)
     }
 
-    fn fetch_first(&mut self) -> Result<Self::Entity, Self::Error> {
+    fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
         let result = libpq::Connection::exec(self, "select id, name, hair_color, created_at from users");
 
         User::from(&result, 0)
     }
 
-    fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error> {
+    fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
         let result = libpq::Connection::exec(self, "select id, name, hair_color, created_at from users");
 
         User::from(&result, 9_999)
+    }
+
+    fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
+        let result = libpq::Connection::exec_params(
+            self,
+"select u.*, array_agg(p.title)
+    from users u
+    join posts p on p.author = u.id
+    where u.id = $1
+    group by u.id, u.name, u.hair_color, u.created_at
+            ",
+            &[libpq::types::INT8.oid],
+            &[Some(b"42\0".to_vec())],
+            &[libpq::Format::Text, libpq::Format::Text],
+            libpq::Format::Text,
+        );
+        let user = User::from(&result, 0)?;
+        let posts = user.posts.clone();
+
+        Ok((user, posts))
+    }
+
+    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
+        let result = libpq::Connection::exec_params(
+            self,
+"select u.*, array_agg(p.title)
+    from users u
+    join posts p on p.author = u.id
+    group by u.id, u.name, u.hair_color, u.created_at
+            ",
+            &[libpq::types::INT8.oid],
+            &[],
+            &[libpq::Format::Text, libpq::Format::Text],
+            libpq::Format::Text,
+        );
+
+        let mut users = Vec::new();
+
+        for x in 0..result.ntuples() {
+            let user = User::from(&result, x)?;
+            let posts = user.posts.clone();
+
+            users.push((user, posts));
+        }
+
+        Ok(users)
     }
 }
 
