@@ -53,19 +53,14 @@ trait Client: Sized {
     fn fetch_last(&mut self) -> Result<Self::Entity, Self::Error>;
 
     fn setup(n: usize) -> Result<Self, Self::Error> {
+        pretty_env_logger::try_init().ok();
+
         let dsn = std::env::var("DATABASE_URL").unwrap();
-        let query = "
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    hair_color VARCHAR,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);";
 
         let mut conn = Self::create(&dsn)?;
-        conn.exec("DROP TABLE IF EXISTS users")?;
-        conn.exec(query)?;
-        conn.insert(n)?;
+
+        conn.exec(&format!(include_str!("sql/structure.sql"), n))?;
+
         Ok(conn)
     }
 
