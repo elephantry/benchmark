@@ -2,16 +2,16 @@ use diesel::prelude::*;
 
 #[derive(diesel::Insertable)]
 #[table_name = "users"]
-pub struct NewUser {
-    name: String,
-    hair_color: Option<String>,
+pub struct NewUser<'a> {
+    name: &'a str,
+    hair_color: Option<&'a str>,
 }
 
-impl NewUser {
+impl<'a> NewUser<'a> {
     pub fn new() -> Self {
         NewUser {
-            name: "User".to_string(),
-            hair_color: Some("hair color".to_string()),
+            name: "User",
+            hair_color: Some("hair color"),
         }
     }
 }
@@ -90,6 +90,15 @@ impl crate::Client for diesel::pg::PgConnection {
     fn insert_user(&mut self) -> Result<(), Self::Error> {
         diesel::insert_into(users::table)
             .values(&NewUser::new())
+            .execute(self)
+            .map(|_| ())
+    }
+
+    fn insert_users(&mut self, n: usize) -> Result<(), Self::Error> {
+        let users = (0..n).map(|_| NewUser::new()).collect::<Vec<_>>();
+
+        diesel::insert_into(users::table)
+            .values(&users)
             .execute(self)
             .map(|_| ())
     }
