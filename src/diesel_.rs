@@ -2,16 +2,16 @@ use diesel::prelude::*;
 
 #[derive(diesel::Insertable)]
 #[table_name = "users"]
-pub struct NewUser {
-    name: String,
-    hair_color: Option<String>,
+pub struct NewUser<'a> {
+    name: &'a str,
+    hair_color: Option<&'a str>,
 }
 
-impl NewUser {
+impl<'a> NewUser<'a> {
     pub fn new() -> Self {
         NewUser {
-            name: "User".to_string(),
-            hair_color: Some("hair color".to_string()),
+            name: "User",
+            hair_color: Some("hair color"),
         }
     }
 }
@@ -63,13 +63,12 @@ impl NewPost {
     }
 }
 
-#[derive(Queryable, Associations, Identifiable, Insertable)]
+#[derive(Queryable, Associations, Identifiable)]
 #[belongs_to(User, foreign_key = "author")]
 pub struct Post {
     id: i32,
-    title: String,
-    content: String,
     author: i32,
+    title: String,
 }
 
 impl crate::Client for diesel::pg::PgConnection {
@@ -94,6 +93,15 @@ impl crate::Client for diesel::pg::PgConnection {
             .map(|_| ())
     }
 
+    fn insert_users(&mut self, n: usize) -> Result<(), Self::Error> {
+        let users = (0..n).map(|_| NewUser::new()).collect::<Vec<_>>();
+
+        diesel::insert_into(users::table)
+            .values(&users)
+            .execute(self)
+            .map(|_| ())
+    }
+
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
         users::table.load::<Self::User>(self)
     }
@@ -111,26 +119,88 @@ impl crate::Client for diesel::pg::PgConnection {
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
+
         let users = users::table.find(42).first::<User>(self)?;
-        let posts = Post::belonging_to(&users).load::<Post>(self)?.iter().map(|x| x.title.clone()).collect();
+        let posts = Post::belonging_to(&users).select((posts::id, posts::author, posts::title)).load::<Post>(self)?.into_iter().map(|Post{title, ..}| title).collect();
 
         Ok((users, posts))
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
-        let users = users::table.load::<User>(self).unwrap();
-        let posts = Post::belonging_to(&users)
-            .load::<Post>(self)
-            .unwrap()
-            .grouped_by(&users)
-            .iter()
-            .map(|u| u.iter().map(|p| p.title.clone()).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
+        use self::array_agg::array_agg;
 
-        let user_with_posts = users.into_iter().zip(posts).collect();
+        let res = users::table.inner_join(posts::table).group_by((users::id, users::name, users::hair_color, users::created_at))
+                                             .select((users::all_columns, array_agg(posts::title)))
+                                             .load::<(User, Vec<String>)>(self)?;
 
-        Ok(user_with_posts)
+        Ok(res)
     }
 }
 
 crate::bench! {diesel::pg::PgConnection}
+
+#[allow(non_camel_case_types)]
+mod array_agg {
+    use diesel::expression::{
+        AppearsOnTable, AsExpression, Expression, SelectableExpression, NonAggregate,
+    };
+    use diesel::pg::Pg;
+    use diesel::query_builder::{AstPass, QueryFragment,};
+    use diesel::result::QueryResult;
+    use diesel::sql_types::{Array, SingleValue};
+    use std::marker::PhantomData;
+
+    #[derive(Debug, Clone, Copy, QueryId)]
+    #[doc(hidden)]
+    pub struct array_agg_t<From, To> {
+        a: From,
+        to: PhantomData<To>,
+    }
+
+    pub type array_agg<From, To> = array_agg_t<<From as AsExpression<To>>::Expression, To>;
+
+    pub fn array_agg<From, To>(a: From) -> array_agg<From, To>
+    where
+        From: AsExpression<To>,
+        To: SingleValue,
+    {
+        array_agg_t {
+            a: a.as_expression(),
+            to: Default::default(),
+        }
+    }
+
+    impl<From, To> Expression for array_agg_t<From, To>
+    where
+        for<'a> &'a From: Expression,
+    {
+        type SqlType = Array<To>;
+    }
+
+    impl<From, To> QueryFragment<Pg> for array_agg_t<From, To>
+    where
+        for<'a> &'a From: QueryFragment<Pg>,
+    {
+        fn walk_ast(&self, mut out: AstPass<Pg>) -> QueryResult<()> {
+            out.push_sql("array_agg(");
+            QueryFragment::walk_ast(&(&self.a,), out.reborrow())?;
+            out.push_sql(")");
+            Ok(())
+        }
+    }
+
+    impl<From, To, QS> SelectableExpression<QS> for array_agg_t<From, To>
+    where
+        From: SelectableExpression<QS>,
+    array_agg_t<From, To>: AppearsOnTable<QS>,
+    {
+    }
+
+    impl<From, To, QS> AppearsOnTable<QS> for array_agg_t<From, To>
+    where
+        From: AppearsOnTable<QS>,
+    array_agg_t<From, To>: Expression,
+    {
+    }
+    impl<From, To> NonAggregate for array_agg_t<From, To> {}
+}
