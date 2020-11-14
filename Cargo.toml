@@ -20,7 +20,7 @@ optional = true
 features = ["flamegraph"]
 
 [dependencies.postgres]
-version = "0.17"
+version = "0.18"
 features = ["with-chrono-0_4"]
 optional = true
 
