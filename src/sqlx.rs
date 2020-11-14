@@ -1,5 +1,3 @@
-use sqlx::postgres::PgQueryAs;
-
 #[derive(Clone, sqlx::FromRow)]
 pub struct User {
     pub id: Option<i32>,
@@ -15,7 +13,7 @@ impl crate::Client for sqlx::PgConnection {
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         async_std::task::block_on({
-            use sqlx::prelude::Connect;
+            use sqlx::Connection;
             sqlx::PgConnection::connect(dsn)
         })
     }
