@@ -7,7 +7,7 @@ authors = ["Sanpi <sanpi@homecomputing.fr>"]
 edition = "2018"
 
 [dependencies]
-async-std = "1.5"
+async-std = "1.7"
 chrono = "0.4"
 
 [dependencies.libpq]
@@ -30,13 +30,13 @@ features = ["postgres", "chrono"]
 optional = true
 
 [dependencies.elephantry]
-version = "0.7"
+version = "1.0"
 features = ["date"]
 optional = true
 
 [dependencies.sqlx]
-version = "0.3"
-features = ["chrono", "postgres"]
+version = "0.4"
+features = ["chrono", "postgres", "runtime-async-std-native-tls"]
 optional = true
 
 [features]
