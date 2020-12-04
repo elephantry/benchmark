@@ -30,7 +30,7 @@ features = ["postgres", "chrono"]
 optional = true
 
 [dependencies.elephantry]
-version = "0.7"
+version = "1.3"
 features = ["date"]
 optional = true
 
