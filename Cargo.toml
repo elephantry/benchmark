@@ -30,7 +30,7 @@ features = ["date"]
 optional = true
 
 [dependencies.sqlx]
-version = "0.4"
+version = "0.5"
 features = ["chrono", "postgres", "runtime-async-std-native-tls"]
 optional = true
 
