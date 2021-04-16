@@ -1,6 +1,8 @@
 mod user {
     #[derive(Clone, elephantry::Entity)]
+    #[elephantry(model = "Model", structure = "Structure", relation = "public.users")]
     pub struct Entity {
+        #[elephantry(pk)]
         pub id: Option<i32>,
         pub name: String,
         pub hair_color: Option<String>,
@@ -17,21 +19,6 @@ mod user {
                 hair_color: Some(format!("hair color")),
                 created_at: None,
                 posts: Vec::new(),
-            }
-        }
-    }
-
-    pub struct Model<'a> {
-        connection: &'a elephantry::Connection,
-    }
-
-    impl<'a> elephantry::Model<'a> for Model<'a> {
-        type Entity = Entity;
-        type Structure = Structure;
-
-        fn new(connection: &'a elephantry::Connection) -> Self {
-            Self {
-                connection,
             }
         }
     }
@@ -74,22 +61,6 @@ select {projection}
             let sql = query.replace("{projection}", &projection.to_string());
 
             Ok(self.connection.query::<Entity>(&sql, &[])?.collect())
-        }
-    }
-
-    pub struct Structure;
-
-    impl elephantry::Structure for Structure {
-        fn relation() -> &'static str {
-            "public.users"
-        }
-
-        fn primary_key() -> &'static [&'static str] {
-            &["id"]
-        }
-
-        fn columns() -> &'static [&'static str] {
-            &["id", "name", "hair_color", "created_at"]
         }
     }
 }
