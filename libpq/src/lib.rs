@@ -1,3 +1,8 @@
+#![feature(test)]
+#![allow(soft_unstable)]
+
+extern crate test;
+
 pub struct User {
     pub id: i32,
     pub name: String,
@@ -57,16 +62,19 @@ fn to_result(result: &libpq::Result) -> Result<&libpq::Result, String> {
     }
 }
 
-impl crate::Client for libpq::Connection{
+struct Connection(libpq::Connection);
+
+impl elephantry_benchmark::Client for Connection {
     type Error = String;
     type User = User;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         libpq::Connection::new(dsn)
+            .map(Self)
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
-        let result = libpq::Connection::exec(self, &query);
+        let result = libpq::Connection::exec(&self.0, &query);
 
         to_result(&result).map(|_| ())
     }
@@ -76,7 +84,7 @@ impl crate::Client for libpq::Connection{
         let hair_color = "hair color\0";
 
         let result = libpq::Connection::exec_params(
-            self,
+            &self.0,
             "insert into users (name, hair_color) values ($1, $2)",
             &[],
             &[Some(name.as_bytes().to_vec()), Some(hair_color.as_bytes().to_vec())],
@@ -88,7 +96,7 @@ impl crate::Client for libpq::Connection{
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        let result = libpq::Connection::exec(self, "select id, name, hair_color, created_at from users");
+        let result = libpq::Connection::exec(&self.0, "select id, name, hair_color, created_at from users");
 
         let mut users = Vec::new();
 
@@ -100,20 +108,20 @@ impl crate::Client for libpq::Connection{
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        let result = libpq::Connection::exec(self, "select id, name, hair_color, created_at from users");
+        let result = libpq::Connection::exec(&self.0, "select id, name, hair_color, created_at from users");
 
         User::from(&result, 0)
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let result = libpq::Connection::exec(self, "select id, name, hair_color, created_at from users");
+        let result = libpq::Connection::exec(&self.0, "select id, name, hair_color, created_at from users");
 
         User::from(&result, 9_999)
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
         let result = libpq::Connection::exec_params(
-            self,
+            &self.0,
 "select u.*, array_agg(p.title)
     from users u
     join posts p on p.author = u.id
@@ -133,7 +141,7 @@ impl crate::Client for libpq::Connection{
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
         let result = libpq::Connection::exec_params(
-            self,
+            &self.0,
 "select u.*, array_agg(p.title)
     from users u
     join posts p on p.author = u.id
@@ -158,4 +166,4 @@ impl crate::Client for libpq::Connection{
     }
 }
 
-crate::bench! {libpq::Connection}
+elephantry_benchmark::bench! {Connection}

@@ -1,3 +1,8 @@
+#![feature(test)]
+#![allow(soft_unstable)]
+
+extern crate test;
+
 mod user {
     #[derive(Clone, elephantry::Entity)]
     #[elephantry(model = "Model", structure = "Structure", relation = "public.users")]
@@ -7,7 +12,7 @@ mod user {
         pub name: String,
         pub hair_color: Option<String>,
         pub created_at: Option<chrono::NaiveDateTime>,
-        #[elephantry(default)]
+        #[elephantry(default, virtual)]
         pub posts: Vec<String>,
     }
 
@@ -65,25 +70,28 @@ select {projection}
     }
 }
 
-impl crate::Client for elephantry::Pool {
+struct Connection(elephantry::Pool);
+
+impl elephantry_benchmark::Client for Connection {
     type Error = elephantry::Error;
     type User = user::Entity;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         elephantry::Pool::new(dsn)
+            .map(Self)
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
-        self.execute(&query).map(|_| ())
+        self.0.execute(&query).map(|_| ())
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
-        self.insert_one::<user::Model>(&user::Entity::new())
+        self.0.insert_one::<user::Model>(&user::Entity::new())
             .map(|_| ())
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        let results = self
+        let results = self.0
             .find_all::<user::Model>(None)?
             .collect::<Vec<Self::User>>();
 
@@ -91,19 +99,19 @@ impl crate::Client for elephantry::Pool {
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        let result = self.find_all::<user::Model>(None)?.next();
+        let result = self.0.find_all::<user::Model>(None)?.next();
 
         Ok(result.unwrap())
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let result = self.find_all::<user::Model>(None)?.get(9_999);
+        let result = self.0.find_all::<user::Model>(None)?.get(9_999);
 
         Ok(result)
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
-        let user = self.model::<user::Model>()
+        let user = self.0.model::<user::Model>()
             .user_with_posts(42)?;
         let posts = user.posts.clone();
 
@@ -111,7 +119,7 @@ impl crate::Client for elephantry::Pool {
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
-        let users = self.model::<user::Model>()
+        let users = self.0.model::<user::Model>()
             .users_with_posts()?;
 
         Ok(users
@@ -125,4 +133,4 @@ impl crate::Client for elephantry::Pool {
     }
 }
 
-crate::bench! {elephantry::Pool}
+elephantry_benchmark::bench! {Connection}

@@ -1,3 +1,10 @@
+#![feature(test)]
+#![allow(soft_unstable)]
+
+#[macro_use]
+extern crate diesel;
+extern crate test;
+
 use diesel::prelude::*;
 
 #[derive(diesel::Insertable)]
@@ -71,25 +78,29 @@ pub struct Post {
     title: String,
 }
 
-impl crate::Client for diesel::pg::PgConnection {
+struct Connection(diesel::pg::PgConnection);
+
+impl elephantry_benchmark::Client for Connection {
     type Error = diesel::result::Error;
     type User = User;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
+        use diesel::Connection;
+
         let client = diesel::pg::PgConnection::establish(dsn).unwrap();
 
-        Ok(client)
+        Ok(Self(client))
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
         use crate::diesel::connection::SimpleConnection;
-        self.batch_execute(query).map(|_| ())
+        self.0.batch_execute(query).map(|_| ())
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
         diesel::insert_into(users::table)
             .values(&NewUser::new())
-            .execute(self)
+            .execute(&self.0)
             .map(|_| ())
     }
 
@@ -98,30 +109,30 @@ impl crate::Client for diesel::pg::PgConnection {
 
         diesel::insert_into(users::table)
             .values(&users)
-            .execute(self)
+            .execute(&self.0)
             .map(|_| ())
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        users::table.load::<Self::User>(self)
+        users::table.load::<Self::User>(&self.0)
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        let results = users::table.load::<User>(self)?;
+        let results = users::table.load::<User>(&self.0)?;
 
         Ok(results.first().unwrap().clone())
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let results = users::table.load::<User>(self)?;
+        let results = users::table.load::<User>(&self.0)?;
 
         Ok(results[9_999].clone())
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
 
-        let users = users::table.find(42).first::<User>(self)?;
-        let posts = Post::belonging_to(&users).select((posts::id, posts::author, posts::title)).load::<Post>(self)?.into_iter().map(|Post{title, ..}| title).collect();
+        let users = users::table.find(42).first::<User>(&self.0)?;
+        let posts = Post::belonging_to(&users).select((posts::id, posts::author, posts::title)).load::<Post>(&self.0)?.into_iter().map(|Post{title, ..}| title).collect();
 
         Ok((users, posts))
     }
@@ -131,13 +142,13 @@ impl crate::Client for diesel::pg::PgConnection {
 
         let res = users::table.inner_join(posts::table).group_by((users::id, users::name, users::hair_color, users::created_at))
                                              .select((users::all_columns, array_agg(posts::title)))
-                                             .load::<(User, Vec<String>)>(self)?;
+                                             .load::<(User, Vec<String>)>(&self.0)?;
 
         Ok(res)
     }
 }
 
-crate::bench! {diesel::pg::PgConnection}
+elephantry_benchmark::bench! {Connection}
 
 #[allow(non_camel_case_types)]
 mod array_agg {

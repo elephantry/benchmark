@@ -1,0 +1,15 @@
+[package]
+name = "diesel-bench"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+chrono = "0.4"
+
+[dependencies.diesel]
+version = "1.4"
+features = ["postgres", "chrono"]
+
+[dependencies.elephantry-benchmark]
+path = "../"
+version = "0.1"

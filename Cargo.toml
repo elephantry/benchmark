@@ -1,38 +1,14 @@
-[workspace]
-
 [package]
-name = "test"
+name = "elephantry-benchmark"
 version = "0.1.0"
 authors = ["Sanpi <sanpi@homecomputing.fr>"]
 edition = "2018"
 
-[dependencies]
-async-std = "1.7"
-chrono = "0.4"
-
-[dependencies.libpq]
-version = "1.0"
-optional = true
-
-[dependencies.postgres]
-version = "0.19"
-features = ["with-chrono-0_4"]
-optional = true
-
-[dependencies.diesel]
-version = "1.4"
-features = ["postgres", "chrono"]
-optional = true
-
-[dependencies.elephantry]
-version = "2.1"
-features = ["date"]
-optional = true
-
-[dependencies.sqlx]
-version = "0.5"
-features = ["chrono", "postgres", "runtime-async-std-native-tls"]
-optional = true
-
-[features]
-default = ["diesel", "elephantry", "sqlx", "postgres", "libpq"]
+[workspace]
+members = [
+    "diesel",
+    "elephantry",
+    "libpq",
+    "postgres",
+    "sqlx",
+]

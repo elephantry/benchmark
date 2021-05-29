@@ -1,3 +1,8 @@
+#![feature(test)]
+#![allow(soft_unstable)]
+
+extern crate test;
+
 pub struct User {
     id: i32,
     name: String,
@@ -18,20 +23,23 @@ impl User {
     }
 }
 
-impl crate::Client for postgres::Client {
+struct Connection(postgres::Client);
+
+impl elephantry_benchmark::Client for Connection {
     type Error = postgres::Error;
     type User = User;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         postgres::Client::connect(dsn, postgres::NoTls)
+            .map(Self)
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
-        self.batch_execute(query).map(|_| ())
+        self.0.batch_execute(query).map(|_| ())
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
-        self.execute(
+        self.0.execute(
             "INSERT INTO users (name, hair_color) VALUES ($1, $2)",
             &[&"User".to_string(), &"hair color".to_string()],
         )
@@ -39,7 +47,7 @@ impl crate::Client for postgres::Client {
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        let results = self
+        let results = self.0
             .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
@@ -49,7 +57,7 @@ impl crate::Client for postgres::Client {
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        let result = self
+        let result = self.0
             .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
@@ -60,7 +68,7 @@ impl crate::Client for postgres::Client {
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let result = self
+        let result = self.0
             .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
@@ -79,7 +87,7 @@ select u.*, array_agg(p.title)
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
 
-        let user = self
+        let user = self.0
             .query(query, &[&42])?
             .iter()
             .map(User::from_row)
@@ -98,7 +106,7 @@ select u.*, array_agg(p.title)
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
 
-        let users = self
+        let users = self.0
             .query(query, &[])?
             .iter()
             .map(|x| {
@@ -113,4 +121,4 @@ select u.*, array_agg(p.title)
    }
 }
 
-crate::bench! {postgres::Client}
+elephantry_benchmark::bench! {Connection}

@@ -1,3 +1,8 @@
+#![feature(test)]
+#![allow(soft_unstable)]
+
+extern crate test;
+
 #[derive(Clone, sqlx::FromRow)]
 pub struct User {
     pub id: Option<i32>,
@@ -7,20 +12,24 @@ pub struct User {
     pub posts: Option<Vec<String>>,
 }
 
-impl crate::Client for sqlx::PgConnection {
+struct Connection(sqlx::PgConnection);
+
+impl elephantry_benchmark::Client for Connection {
     type Error = sqlx::Error;
     type User = User;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
-        async_std::task::block_on({
+        async_std::task::block_on(async {
             use sqlx::Connection;
             sqlx::PgConnection::connect(dsn)
+                .await
+                .map(Self)
         })
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
         use sqlx::Executor;
-        async_std::task::block_on(self.execute(query)).map(|_| ())
+        async_std::task::block_on(self.0.execute(query)).map(|_| ())
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
@@ -28,26 +37,26 @@ impl crate::Client for sqlx::PgConnection {
             sqlx::query("INSERT INTO users (name, hair_color) VALUES ($1, $2)")
                 .bind(&"User".to_string())
                 .bind(&"hair color".to_string())
-                .execute(self)
+                .execute(&mut self.0)
         })
         .map(|_| ())
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_all(self)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_all(&mut self.0)
         })
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_one(self)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_one(&mut self.0)
         })
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
         let results = async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_all(self)
+            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_all(&mut self.0)
         })?;
 
         Ok(results[9_999].clone())
@@ -62,7 +71,7 @@ select u.*, array_agg(p.title) as posts
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
         let user = async_std::task::block_on({
-            sqlx::query_as::<_, User>(query).bind(42).fetch_one(self)
+            sqlx::query_as::<_, User>(query).bind(42).fetch_one(&mut self.0)
         })?;
         let posts = user.posts.clone().unwrap_or_default();
 
@@ -77,7 +86,7 @@ select u.*, array_agg(p.title) as posts
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
         let users = async_std::task::block_on({
-            sqlx::query_as::<_, User>(query).fetch_all(self)
+            sqlx::query_as::<_, User>(query).fetch_all(&mut self.0)
         })?
         .iter()
         .map(|u| {
@@ -90,4 +99,4 @@ select u.*, array_agg(p.title) as posts
     }
 }
 
-crate::bench! {sqlx::PgConnection}
+elephantry_benchmark::bench! {Connection}

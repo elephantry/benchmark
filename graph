@@ -7,12 +7,13 @@ function main()
     exec 5>&1
 
     local output=$1
-    local bench=$(cargo bench|tee >(cat - >&5))
-    local csv=$(echo "$bench" | sed -E  's/test ([^:]+)::([^ ]+) +... bench: +([0-9,+]+) ns\/iter \(\+\/- ([0-9,]+)\)/\1;\2;\3;\4/;t;d' | sed 's/,//g')
-    csv="tool;steps;mean;stddev
-$csv"
+    local csv="tool;steps;mean;stddev"
+    for crate in diesel elephantry libpq postgres sqlx
+    do
+        local bench=$(cargo bench -p $crate-bench | tee >(cat - >&5))
+        csv="$csv\n$(echo "$bench" | sed -E 's/test ([^ ]+) +... bench: +([0-9,+]+) ns\/iter \(\+\/- ([0-9,]+)\)/'$crate';\1;\2;\3/;t;d' | sed 's/,//g')"
+    done
 
-echo $csv
     local r_script='
 error.bar <- function (x, y, upper, lower=upper, length=0.1, ...) {
     if (length(x) != length(y)
