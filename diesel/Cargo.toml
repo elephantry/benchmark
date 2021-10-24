@@ -5,10 +5,11 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4"
+uuid = "0.8"
 
 [dependencies.diesel]
 version = "1.4"
-features = ["postgres", "chrono"]
+features = ["postgres", "chrono", "uuidv07"]
 
 [dependencies.elephantry-benchmark]
 path = "../"

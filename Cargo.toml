@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Sanpi <sanpi@homecomputing.fr>"]
 edition = "2021"
 
+[dependencies]
+uuid = "0.8"
+
 [workspace]
 members = [
     "diesel",

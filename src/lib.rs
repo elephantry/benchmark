@@ -4,6 +4,9 @@
 
 extern crate test;
 
+// "85e11126-a41d-4dce-98f8-731a87685d2c"
+pub const UUID: uuid::Uuid = uuid::Uuid::from_u128(177955938094988552825808298658849381676);
+
 pub trait Client: Sized {
     type Error: Sized;
     type User: Sized;
