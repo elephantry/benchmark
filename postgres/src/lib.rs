@@ -4,7 +4,7 @@
 extern crate test;
 
 pub struct User {
-    id: i32,
+    id: uuid::Uuid,
     name: String,
     hair_color: Option<String>,
     created_at: chrono::NaiveDateTime,
@@ -88,7 +88,7 @@ select u.*, array_agg(p.title)
 "#;
 
         let user = self.0
-            .query(query, &[&42])?
+            .query(query, &[&elephantry_benchmark::UUID])?
             .iter()
             .map(User::from_row)
             .next()

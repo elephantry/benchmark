@@ -12,4 +12,8 @@ version = "0.1"
 
 [dependencies.elephantry]
 version = "2.1"
-features = ["date"]
+features = ["date", "uuid"]
+
+[dependencies.uuid]
+version = "0.8"
+features = ["v4"]

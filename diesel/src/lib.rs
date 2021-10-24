@@ -25,7 +25,7 @@ impl<'a> NewUser<'a> {
 
 diesel::table! {
     users {
-        id -> Serial,
+        id -> Uuid,
         name -> VarChar,
         hair_color -> Nullable<VarChar>,
         created_at -> Timestamp,
@@ -34,10 +34,10 @@ diesel::table! {
 
 diesel::table! {
     posts {
-        id -> Serial,
+        id -> Uuid,
         title -> Text,
         content -> Text,
-        author -> Integer,
+        author -> Uuid,
     }
 }
 
@@ -46,7 +46,7 @@ joinable!(posts -> users (author));
 
 #[derive(Clone, diesel::Queryable, Identifiable)]
 pub struct User {
-    id: i32,
+    id: uuid::Uuid,
     name: String,
     hair_color: Option<String>,
     created_at: chrono::NaiveDateTime,
@@ -57,15 +57,15 @@ pub struct User {
 pub struct NewPost {
     title: String,
     content: String,
-    author: i32,
+    author: uuid::Uuid,
 }
 
 impl NewPost {
-    fn new(id: usize, user_id: usize) -> Self {
+    fn new(id: usize, user_id: uuid::Uuid) -> Self {
         Self {
             title: format!("Post number {} for user {}", id, user_id),
             content: "abc".chars().cycle().take(500).collect::<String>(),
-            author: user_id as i32,
+            author: user_id,
         }
     }
 }
@@ -73,8 +73,8 @@ impl NewPost {
 #[derive(Queryable, Associations, Identifiable)]
 #[belongs_to(User, foreign_key = "author")]
 pub struct Post {
-    id: i32,
-    author: i32,
+    id: uuid::Uuid,
+    author: uuid::Uuid,
     title: String,
 }
 
@@ -131,7 +131,7 @@ impl elephantry_benchmark::Client for Connection {
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
 
-        let users = users::table.find(42).first::<User>(&self.0)?;
+        let users = users::table.find(elephantry_benchmark::UUID).first::<User>(&self.0)?;
         let posts = Post::belonging_to(&users).select((posts::id, posts::author, posts::title)).load::<Post>(&self.0)?.into_iter().map(|Post{title, ..}| title).collect();
 
         Ok((users, posts))

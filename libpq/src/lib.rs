@@ -4,7 +4,7 @@
 extern crate test;
 
 pub struct User {
-    pub id: i32,
+    pub id: uuid::Uuid,
     pub name: String,
     pub hair_color: Option<String>,
     pub created_at: Option<chrono::NaiveDateTime>,
@@ -120,6 +120,9 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
+        let mut id = elephantry_benchmark::UUID.to_string().as_bytes().to_vec();
+        id.push(b'\0');
+
         let result = libpq::Connection::exec_params(
             &self.0,
 "select u.*, array_agg(p.title)
@@ -128,8 +131,8 @@ impl elephantry_benchmark::Client for Connection {
     where u.id = $1
     group by u.id, u.name, u.hair_color, u.created_at
             ",
-            &[libpq::types::INT8.oid],
-            &[Some(b"42\0".to_vec())],
+            &[libpq::types::UUID.oid],
+            &[Some(id)],
             &[libpq::Format::Text, libpq::Format::Text],
             libpq::Format::Text,
         );
@@ -147,9 +150,9 @@ impl elephantry_benchmark::Client for Connection {
     join posts p on p.author = u.id
     group by u.id, u.name, u.hair_color, u.created_at
             ",
-            &[libpq::types::INT8.oid],
             &[],
-            &[libpq::Format::Text, libpq::Format::Text],
+            &[],
+            &[],
             libpq::Format::Text,
         );
 

@@ -5,7 +5,7 @@ extern crate test;
 
 #[derive(Clone, sqlx::FromRow)]
 pub struct User {
-    pub id: Option<i32>,
+    pub id: Option<uuid::Uuid>,
     pub name: String,
     pub hair_color: Option<String>,
     pub created_at: Option<chrono::NaiveDateTime>,
@@ -71,7 +71,7 @@ select u.*, array_agg(p.title) as posts
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
         let user = async_std::task::block_on({
-            sqlx::query_as::<_, User>(query).bind(42).fetch_one(&mut self.0)
+            sqlx::query_as::<_, User>(query).bind(elephantry_benchmark::UUID).fetch_one(&mut self.0)
         })?;
         let posts = user.posts.clone().unwrap_or_default();
 

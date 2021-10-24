@@ -8,7 +8,7 @@ mod user {
     #[elephantry(model = "Model", structure = "Structure", relation = "public.users")]
     pub struct Entity {
         #[elephantry(pk)]
-        pub id: Option<i32>,
+        pub id: Option<uuid::Uuid>,
         pub name: String,
         pub hair_color: Option<String>,
         pub created_at: Option<chrono::NaiveDateTime>,
@@ -26,10 +26,20 @@ mod user {
                 posts: Vec::new(),
             }
         }
+
+        pub fn with_id(id: uuid::Uuid) -> Self {
+            Self {
+                id: Some(id),
+                name: format!("User"),
+                hair_color: Some(format!("hair color")),
+                created_at: Some(chrono::offset::Local::now().naive_local()),
+                posts: Vec::new(),
+            }
+        }
     }
 
     impl<'a> Model<'a> {
-        pub fn user_with_posts(&self, id: i32) -> Result<Entity, elephantry::Error> {
+        pub fn user_with_posts(&self, id: uuid::Uuid) -> Result<Entity, elephantry::Error> {
             use elephantry::Model;
 
             let query = r#"
@@ -90,6 +100,12 @@ impl elephantry_benchmark::Client for Connection {
             .map(|_| ())
     }
 
+    fn insert_users(&mut self, n: usize) -> Result<(), Self::Error> {
+        let users = (0..n).map(|_| user::Entity::with_id(uuid::Uuid::new_v4()));
+
+        self.0.copy::<user::Model, _>(users)
+    }
+
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
         let results = self.0
             .find_all::<user::Model>(None)?
@@ -112,7 +128,7 @@ impl elephantry_benchmark::Client for Connection {
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
         let user = self.0.model::<user::Model>()
-            .user_with_posts(42)?;
+            .user_with_posts(elephantry_benchmark::UUID)?;
         let posts = user.posts.clone();
 
         Ok((user, posts))

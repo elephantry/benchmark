@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 chrono = "0.4"
 libpq = "1.0"
+uuid = "0.8"
 
 [dependencies.elephantry-benchmark]
 path = "../"
