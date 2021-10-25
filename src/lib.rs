@@ -10,6 +10,7 @@ pub const UUID: uuid::Uuid = uuid::Uuid::from_u128(17795593809498855282580829865
 pub trait Client: Sized {
     type Error: Sized;
     type User: Sized;
+    type Post: Sized;
 
     /**
      * Creates a new database connection.
@@ -41,9 +42,9 @@ pub trait Client: Sized {
      */
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error>;
 
-    fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error>;
+    fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error>;
 
-    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error>;
+    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error>;
 
     fn setup(n: usize) -> Result<Self, Self::Error> {
         let dsn = std::env::var("DATABASE_URL").unwrap();

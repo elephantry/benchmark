@@ -28,6 +28,7 @@ struct Connection(postgres::Client);
 impl elephantry_benchmark::Client for Connection {
     type Error = postgres::Error;
     type User = User;
+    type Post = String;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         postgres::Client::connect(dsn, postgres::NoTls)
@@ -78,7 +79,7 @@ impl elephantry_benchmark::Client for Connection {
         Ok(result)
     }
 
-    fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
+    fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
             let query = r#"
 select u.*, array_agg(p.title)
     from users u
@@ -98,7 +99,7 @@ select u.*, array_agg(p.title)
         Ok((user, posts))
     }
 
-    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
+    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
              let query = r#"
 select u.*, array_agg(p.title)
     from users u

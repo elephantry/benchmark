@@ -83,6 +83,7 @@ struct Connection(diesel::pg::PgConnection);
 impl elephantry_benchmark::Client for Connection {
     type Error = diesel::result::Error;
     type User = User;
+    type Post = String;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         use diesel::Connection;
@@ -129,7 +130,7 @@ impl elephantry_benchmark::Client for Connection {
         Ok(results[9_999].clone())
     }
 
-    fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
+    fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
 
         let users = users::table.find(elephantry_benchmark::UUID).first::<User>(&self.0)?;
         let posts = Post::belonging_to(&users).select((posts::id, posts::author, posts::title)).load::<Post>(&self.0)?.into_iter().map(|Post{title, ..}| title).collect();
@@ -137,7 +138,7 @@ impl elephantry_benchmark::Client for Connection {
         Ok((users, posts))
     }
 
-    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
+    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
         use self::array_agg::array_agg;
 
         let res = users::table.inner_join(posts::table).group_by((users::id, users::name, users::hair_color, users::created_at))

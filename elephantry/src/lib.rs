@@ -85,6 +85,7 @@ struct Connection(elephantry::Pool);
 impl elephantry_benchmark::Client for Connection {
     type Error = elephantry::Error;
     type User = user::Entity;
+    type Post = String;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         elephantry::Pool::new(dsn)
@@ -126,7 +127,7 @@ impl elephantry_benchmark::Client for Connection {
         Ok(result)
     }
 
-    fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
+    fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
         let user = self.0.model::<user::Model>()
             .user_with_posts(elephantry_benchmark::UUID)?;
         let posts = user.posts.clone();
@@ -134,7 +135,7 @@ impl elephantry_benchmark::Client for Connection {
         Ok((user, posts))
     }
 
-    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
+    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
         let users = self.0.model::<user::Model>()
             .users_with_posts()?;
 

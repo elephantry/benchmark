@@ -17,6 +17,7 @@ struct Connection(sqlx::PgConnection);
 impl elephantry_benchmark::Client for Connection {
     type Error = sqlx::Error;
     type User = User;
+    type Post = String;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         async_std::task::block_on(async {
@@ -62,7 +63,7 @@ impl elephantry_benchmark::Client for Connection {
         Ok(results[9_999].clone())
     }
 
-    fn one_relation(&mut self) -> Result<(Self::User, Vec<String>), Self::Error> {
+    fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
         let query = r#"
 select u.*, array_agg(p.title) as posts
     from users u
@@ -78,7 +79,7 @@ select u.*, array_agg(p.title) as posts
         Ok((user, posts))
     }
 
-    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<String>)>, Self::Error> {
+    fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
          let query = r#"
 select u.*, array_agg(p.title) as posts
     from users u
