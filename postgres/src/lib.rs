@@ -8,12 +8,12 @@ pub struct User {
     name: String,
     hair_color: Option<String>,
     created_at: chrono::NaiveDateTime,
-    posts: Option<Vec<String>>,
+    posts: Option<Vec<Post>>,
 }
 
 impl User {
     fn from_row(row: &postgres::Row) -> Self {
-        User {
+        Self {
             id: row.get("id"),
             name: row.get("name"),
             hair_color: row.get("hair_color"),
@@ -23,12 +23,19 @@ impl User {
     }
 }
 
+#[derive(Clone, postgres_derive::FromSql)]
+pub struct Post {
+    id: Option<uuid::Uuid>,
+    title: String,
+    content: String,
+}
+
 struct Connection(postgres::Client);
 
 impl elephantry_benchmark::Client for Connection {
     type Error = postgres::Error;
     type User = User;
-    type Post = String;
+    type Post = Post;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         postgres::Client::connect(dsn, postgres::NoTls)
@@ -81,7 +88,7 @@ impl elephantry_benchmark::Client for Connection {
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
             let query = r#"
-select u.*, array_agg(p.title)
+select u.*, array_agg(p)
     from users u
     join posts p on p.author = u.id
     where u.id = $1
@@ -101,7 +108,7 @@ select u.*, array_agg(p.title)
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
              let query = r#"
-select u.*, array_agg(p.title)
+select u.*, array_agg(p)
     from users u
     join posts p on p.author = u.id
     group by u.id, u.name, u.hair_color, u.created_at

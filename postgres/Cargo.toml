@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 chrono = "0.4"
 uuid = "0.8"
+postgres-derive = "0.4"
+postgres-types = "0.2"
 
 [dependencies.postgres]
 version = "0.19"

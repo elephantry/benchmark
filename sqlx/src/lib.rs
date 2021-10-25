@@ -9,7 +9,26 @@ pub struct User {
     pub name: String,
     pub hair_color: Option<String>,
     pub created_at: Option<chrono::NaiveDateTime>,
-    pub posts: Option<Vec<String>>,
+    pub posts: Option<Posts>,
+}
+
+/* https://github.com/launchbadge/sqlx/issues/298 */
+#[derive(Clone, sqlx::Type)]
+#[sqlx(type_name = "_posts")]
+pub struct Posts(Vec<Post>);
+
+impl Posts {
+    fn to_vec(self) -> Vec<Post> {
+        self.0
+    }
+}
+
+#[derive(Clone, sqlx::Type)]
+#[sqlx(type_name = "posts")]
+pub struct Post {
+    pub id: Option<uuid::Uuid>,
+    pub title: String,
+    pub content: String,
 }
 
 struct Connection(sqlx::PgConnection);
@@ -17,7 +36,7 @@ struct Connection(sqlx::PgConnection);
 impl elephantry_benchmark::Client for Connection {
     type Error = sqlx::Error;
     type User = User;
-    type Post = String;
+    type Post = Post;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         async_std::task::block_on(async {
@@ -65,7 +84,7 @@ impl elephantry_benchmark::Client for Connection {
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
         let query = r#"
-select u.*, array_agg(p.title) as posts
+select u.*, array_agg(p) as posts
     from users u
     join posts p on p.author = u.id
     where u.id = $1
@@ -74,14 +93,14 @@ select u.*, array_agg(p.title) as posts
         let user = async_std::task::block_on({
             sqlx::query_as::<_, User>(query).bind(elephantry_benchmark::UUID).fetch_one(&mut self.0)
         })?;
-        let posts = user.posts.clone().unwrap_or_default();
+        let posts = user.posts.clone().map(Posts::to_vec).unwrap();
 
         Ok((user, posts))
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
          let query = r#"
-select u.*, array_agg(p.title) as posts
+select u.*, array_agg(p) as posts
     from users u
     join posts p on p.author = u.id
     group by u.id, u.name, u.hair_color, u.created_at
@@ -90,10 +109,7 @@ select u.*, array_agg(p.title) as posts
             sqlx::query_as::<_, User>(query).fetch_all(&mut self.0)
         })?
         .iter()
-        .map(|u| {
-            let posts = u.posts.clone().unwrap_or_default();
-            (u.clone(), posts)
-        })
+        .map(|u| (u.clone(), u.posts.clone().map(Posts::to_vec).unwrap()))
         .collect();
 
         Ok(users)

@@ -13,7 +13,7 @@ mod user {
         pub hair_color: Option<String>,
         pub created_at: Option<chrono::NaiveDateTime>,
         #[elephantry(default, virtual)]
-        pub posts: Vec<String>,
+        pub posts: Vec<crate::post::Entity>,
     }
 
     impl Entity {
@@ -38,7 +38,7 @@ mod user {
         }
     }
 
-    impl<'a> Model<'a> {
+    impl Model {
         pub fn user_with_posts(&self, id: uuid::Uuid) -> Result<Entity, elephantry::Error> {
             use elephantry::Model;
 
@@ -52,7 +52,7 @@ select {projection}
 
             let projection = Self::create_projection()
                 .alias("u")
-                .add_field("posts", "array_agg(p.title)");
+                .add_field("posts", "array_agg(p)");
 
             let sql = query.replace("{projection}", &projection.to_string());
 
@@ -71,7 +71,7 @@ select {projection}
 
             let projection = Self::create_projection()
                 .alias("u")
-                .add_field("posts", "array_agg(p.title)");
+                .add_field("posts", "array_agg(p)");
 
             let sql = query.replace("{projection}", &projection.to_string());
 
@@ -80,12 +80,23 @@ select {projection}
     }
 }
 
+mod post {
+    #[derive(Clone, elephantry::Entity, elephantry::Composite)]
+    #[elephantry(model = "Model", structure = "Structure", relation = "public.posts")]
+    pub struct Entity {
+        #[elephantry(pk)]
+        pub id: Option<uuid::Uuid>,
+        pub title: String,
+        pub content: String,
+    }
+}
+
 struct Connection(elephantry::Pool);
 
 impl elephantry_benchmark::Client for Connection {
     type Error = elephantry::Error;
     type User = user::Entity;
-    type Post = String;
+    type Post = post::Entity;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         elephantry::Pool::new(dsn)
