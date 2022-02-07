@@ -12,7 +12,7 @@ pub struct User {
 }
 
 impl User {
-    fn from(result: &libpq::Result, x: usize) -> Result<User, String> {
+    fn from(result: &libpq::Result, x: usize) -> libpq::errors::Result<User> {
         let result = to_result(result)?;
 
         let id = String::from_utf8(result.value(x, 0).unwrap().to_vec()).unwrap().parse().unwrap();
@@ -53,11 +53,17 @@ impl User {
     }
 }
 
-fn to_result(result: &libpq::Result) -> Result<&libpq::Result, String> {
+fn to_result(result: &libpq::Result) -> libpq::errors::Result<&libpq::Result> {
     use libpq::Status::*;
 
     match result.status() {
-        BadResponse | FatalError | NonFatalError =>  Err(result.error_message().unwrap()),
+        BadResponse | FatalError | NonFatalError => {
+            let error = result.error_message()?
+                .map(|x| libpq::errors::Error::Backend(x.to_string()))
+                .unwrap_or(libpq::errors::Error::Unknow);
+
+            Err(error)
+        }
         _ => Ok(result),
     }
 }
@@ -65,7 +71,7 @@ fn to_result(result: &libpq::Result) -> Result<&libpq::Result, String> {
 struct Connection(libpq::Connection);
 
 impl elephantry_benchmark::Client for Connection {
-    type Error = String;
+    type Error = libpq::errors::Error;
     type User = User;
     type Post = String;
 
