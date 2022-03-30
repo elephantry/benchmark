@@ -44,7 +44,7 @@ graph <- barplot(mean, legend=tools, beside = TRUE, ylab="Duration (ns)",
     col = rainbow(length(tools)), las = 2)
 error.bar(graph, mean, stddev)'
 
-    echo "$r_script" | R --no-save --slave --args "$output" 2> /dev/null
+    echo "$r_script" | R --slave --args "$output" 2> /dev/null
 }
 
 main $*
