@@ -5,6 +5,7 @@ authors = ["Sanpi <sanpi@homecomputing.fr>"]
 edition = "2021"
 
 [dependencies]
+env_logger = "0.9"
 uuid = "0.8"
 
 [workspace]

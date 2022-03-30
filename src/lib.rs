@@ -47,6 +47,8 @@ pub trait Client: Sized {
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error>;
 
     fn setup(n: usize) -> Result<Self, Self::Error> {
+        env_logger::try_init().ok();
+
         let dsn = std::env::var("DATABASE_URL").unwrap();
 
         let mut conn = Self::create(&dsn)?;
