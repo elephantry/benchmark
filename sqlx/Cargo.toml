@@ -6,7 +6,7 @@ edition = "2018"
 [dependencies]
 async-std = "1.7"
 chrono = "0.4"
-uuid = "0.8"
+uuid = "1.1"
 
 [dependencies.sqlx]
 version = "0.5"
