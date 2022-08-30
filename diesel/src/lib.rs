@@ -1,14 +1,12 @@
 #![feature(test)]
 #![allow(soft_unstable)]
 
-#[macro_use]
-extern crate diesel;
 extern crate test;
 
 use diesel::prelude::*;
 
 #[derive(diesel::Insertable)]
-#[table_name = "users"]
+#[diesel(table_name = users)]
 pub struct NewUser<'a> {
     name: &'a str,
     hair_color: Option<&'a str>,
@@ -53,7 +51,7 @@ pub struct User {
 }
 
 #[derive(diesel::Insertable)]
-#[table_name = "posts"]
+#[diesel(table_name = posts)]
 pub struct NewPost {
     title: String,
     content: String,
@@ -61,8 +59,8 @@ pub struct NewPost {
 }
 
 #[derive(Queryable, Identifiable, Associations)]
-#[table_name = "posts"]
-#[belongs_to(User, foreign_key = "author")]
+#[diesel(table_name = posts)]
+#[diesel(belongs_to(User, foreign_key = author))]
 pub struct Post {
     id: uuid::Uuid,
     title: String,
@@ -86,14 +84,14 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
-        use crate::diesel::connection::SimpleConnection;
+        use diesel::connection::SimpleConnection;
         self.0.batch_execute(query).map(|_| ())
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
         diesel::insert_into(users::table)
             .values(&NewUser::new())
-            .execute(&self.0)
+            .execute(&mut self.0)
             .map(|_| ())
     }
 
@@ -102,38 +100,38 @@ impl elephantry_benchmark::Client for Connection {
 
         diesel::insert_into(users::table)
             .values(&users)
-            .execute(&self.0)
+            .execute(&mut self.0)
             .map(|_| ())
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        users::table.load::<Self::User>(&self.0)
+        users::table.load::<Self::User>(&mut self.0)
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        let results = users::table.load::<User>(&self.0)?;
+        let results = users::table.load::<User>(&mut self.0)?;
 
         Ok(results.first().unwrap().clone())
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let results = users::table.load::<User>(&self.0)?;
+        let results = users::table.load::<User>(&mut self.0)?;
 
         Ok(results[9_999].clone())
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
 
-        let users = users::table.find(elephantry_benchmark::UUID).first::<User>(&self.0)?;
-        let posts = Post::belonging_to(&users).select(posts::all_columns).load::<Post>(&self.0)?.into_iter().collect();
+        let users = users::table.find(elephantry_benchmark::UUID).first::<User>(&mut self.0)?;
+        let posts = Post::belonging_to(&users).select(posts::all_columns).load::<Post>(&mut self.0)?.into_iter().collect();
 
         Ok((users, posts))
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
-        let users = users::table.load(&self.0)?;
+        let users = users::table.load(&mut self.0)?;
         let posts: Vec<Post> = Post::belonging_to(&users)
-            .load(&self.0)?;
+            .load(&mut self.0)?;
         let grouped_posts = posts.grouped_by(&users);
         let users_and_posts = users.into_iter()
             .zip(grouped_posts)
