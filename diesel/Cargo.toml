@@ -14,5 +14,3 @@ features = ["postgres", "chrono", "uuid"]
 [dependencies.elephantry-benchmark]
 path = "../"
 version = "0.1"
-default-features = false
-features = ["uuid1"]

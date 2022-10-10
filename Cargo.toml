@@ -6,18 +6,7 @@ edition = "2021"
 
 [dependencies]
 env_logger = "0.9"
-
-[dependencies.uuid]
-version = "0.8"
-optional = true
-
-[dependencies.uuid1]
-package = "uuid"
-version = "1.0"
-optional = true
-
-[features]
-default = ["uuid"]
+uuid = "1.0"
 
 [workspace]
 members = [

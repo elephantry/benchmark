@@ -5,13 +5,13 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4"
-uuid = "0.8"
+uuid = "1.0"
 postgres-derive = "0.4"
 postgres-types = "0.2"
 
 [dependencies.postgres]
 version = "0.19"
-features = ["with-chrono-0_4", "with-uuid-0_8"]
+features = ["with-chrono-0_4", "with-uuid-1"]
 
 [dependencies.elephantry-benchmark]
 path = "../"

@@ -6,8 +6,11 @@ edition = "2021"
 [dependencies]
 chrono = "0.4"
 libpq = "3.0"
-uuid = "0.8"
 
 [dependencies.elephantry-benchmark]
 path = "../"
 version = "0.1"
+
+[dependencies.uuid]
+version = "1.0"
+features = ["v4"]
