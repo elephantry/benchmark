@@ -61,6 +61,18 @@ impl elephantry_benchmark::Client for Connection {
         })
         .map(|_| ())
     }
+    
+    fn insert_users(&mut self, n: usize) -> Result<(), Self::Error> {
+        let names = vec!["User"; n];
+        let colors = vec!["hair color"; n];
+        async_std::task::block_on({
+            sqlx::query("INSERT INTO users (name, hair_color) select * from unnest($1::text[], $2::text[])")
+                .bind(&names)
+                .bind(&colors)
+                .execute(&mut self.0)
+        })
+        .map(|_| ())
+    }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
         async_std::task::block_on({
