@@ -2,20 +2,8 @@
 name = "elephantry-benchmark"
 version = "0.1.0"
 authors = ["Sanpi <sanpi@homecomputing.fr>"]
-edition.workspace = true
+edition = "2024"
 
 [dependencies]
 env_logger = "0.10"
 uuid = "1.0"
-
-[workspace]
-members = [
-    "diesel",
-    "elephantry",
-    "libpq",
-    "postgres",
-    "sqlx",
-]
-
-[workspace.package]
-edition = "2024"
