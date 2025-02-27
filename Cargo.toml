@@ -2,7 +2,7 @@
 name = "elephantry-benchmark"
 version = "0.1.0"
 authors = ["Sanpi <sanpi@homecomputing.fr>"]
-edition = "2021"
+edition.workspace = true
 
 [dependencies]
 env_logger = "0.10"
@@ -16,3 +16,6 @@ members = [
     "postgres",
     "sqlx",
 ]
+
+[workspace.package]
+edition = "2024"
