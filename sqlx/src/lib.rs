@@ -53,8 +53,8 @@ impl elephantry_benchmark::Client for Connection {
     fn insert_user(&mut self) -> Result<(), Self::Error> {
         async_std::task::block_on({
             sqlx::query("INSERT INTO users (name, hair_color) VALUES ($1, $2)")
-                .bind(&"User".to_string())
-                .bind(&"hair color".to_string())
+                .bind("User")
+                .bind("hair color")
                 .execute(&mut self.0)
         })
         .map(|_| ())
@@ -129,7 +129,7 @@ select u.*, array_agg(p) as posts
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
         let users =
-            async_std::task::block_on({ sqlx::query_as::<_, User>(query).fetch_all(&mut self.0) })?
+            async_std::task::block_on(sqlx::query_as::<_, User>(query).fetch_all(&mut self.0))?
                 .iter()
                 .map(|u| (u.clone(), u.posts.clone().map(Posts::to_vec).unwrap()))
                 .collect();
