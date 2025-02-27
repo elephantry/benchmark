@@ -41,9 +41,7 @@ impl elephantry_benchmark::Client for Connection {
     fn create(dsn: &str) -> Result<Self, Self::Error> {
         async_std::task::block_on(async {
             use sqlx::Connection;
-            sqlx::PgConnection::connect(dsn)
-                .await
-                .map(Self)
+            sqlx::PgConnection::connect(dsn).await.map(Self)
         })
     }
 
@@ -61,34 +59,45 @@ impl elephantry_benchmark::Client for Connection {
         })
         .map(|_| ())
     }
-    
+
     fn insert_users(&mut self, n: usize) -> Result<(), Self::Error> {
         let names = vec!["User"; n];
         let colors = vec!["hair color"; n];
         async_std::task::block_on({
-            sqlx::query("INSERT INTO users (name, hair_color) select * from unnest($1::text[], $2::text[])")
-                .bind(&names)
-                .bind(&colors)
-                .execute(&mut self.0)
+            sqlx::query(
+                "INSERT INTO users (name, hair_color) select * from unnest($1::text[], $2::text[])",
+            )
+            .bind(&names)
+            .bind(&colors)
+            .execute(&mut self.0)
         })
         .map(|_| ())
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_all(&mut self.0)
+            sqlx::query_as::<_, User>(
+                "SELECT id, name, hair_color, created_at, null as posts FROM users",
+            )
+            .fetch_all(&mut self.0)
         })
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
         async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_one(&mut self.0)
+            sqlx::query_as::<_, User>(
+                "SELECT id, name, hair_color, created_at, null as posts FROM users",
+            )
+            .fetch_one(&mut self.0)
         })
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
         let results = async_std::task::block_on({
-            sqlx::query_as::<_, User>("SELECT id, name, hair_color, created_at, null as posts FROM users").fetch_all(&mut self.0)
+            sqlx::query_as::<_, User>(
+                "SELECT id, name, hair_color, created_at, null as posts FROM users",
+            )
+            .fetch_all(&mut self.0)
         })?;
 
         Ok(results[9_999].clone())
@@ -103,7 +112,9 @@ select u.*, array_agg(p) as posts
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
         let user = async_std::task::block_on({
-            sqlx::query_as::<_, User>(query).bind(elephantry_benchmark::UUID).fetch_one(&mut self.0)
+            sqlx::query_as::<_, User>(query)
+                .bind(elephantry_benchmark::UUID)
+                .fetch_one(&mut self.0)
         })?;
         let posts = user.posts.clone().map(Posts::to_vec).unwrap();
 
@@ -111,18 +122,17 @@ select u.*, array_agg(p) as posts
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
-         let query = r#"
+        let query = r#"
 select u.*, array_agg(p) as posts
     from users u
     join posts p on p.author = u.id
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
-        let users = async_std::task::block_on({
-            sqlx::query_as::<_, User>(query).fetch_all(&mut self.0)
-        })?
-        .iter()
-        .map(|u| (u.clone(), u.posts.clone().map(Posts::to_vec).unwrap()))
-        .collect();
+        let users =
+            async_std::task::block_on({ sqlx::query_as::<_, User>(query).fetch_all(&mut self.0) })?
+                .iter()
+                .map(|u| (u.clone(), u.posts.clone().map(Posts::to_vec).unwrap()))
+                .collect();
 
         Ok(users)
     }

@@ -38,8 +38,7 @@ impl elephantry_benchmark::Client for Connection {
     type Post = Post;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
-        postgres::Client::connect(dsn, postgres::NoTls)
-            .map(Self)
+        postgres::Client::connect(dsn, postgres::NoTls).map(Self)
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
@@ -47,15 +46,17 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
-        self.0.execute(
-            "INSERT INTO users (name, hair_color) VALUES ($1, $2)",
-            &[&"User".to_string(), &"hair color".to_string()],
-        )
-        .map(|_| ())
+        self.0
+            .execute("INSERT INTO users (name, hair_color) VALUES ($1, $2)", &[
+                &"User".to_string(),
+                &"hair color".to_string(),
+            ])
+            .map(|_| ())
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        let results = self.0
+        let results = self
+            .0
             .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
@@ -65,7 +66,8 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        let result = self.0
+        let result = self
+            .0
             .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
@@ -76,7 +78,8 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let result = self.0
+        let result = self
+            .0
             .query("SELECT id, name, hair_color, created_at FROM users", &[])?
             .iter()
             .map(User::from_row)
@@ -87,7 +90,7 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
-            let query = r#"
+        let query = r#"
 select u.*, array_agg(p)
     from users u
     join posts p on p.author = u.id
@@ -95,7 +98,8 @@ select u.*, array_agg(p)
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
 
-        let user = self.0
+        let user = self
+            .0
             .query(query, &[&elephantry_benchmark::UUID])?
             .iter()
             .map(User::from_row)
@@ -107,14 +111,15 @@ select u.*, array_agg(p)
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
-             let query = r#"
+        let query = r#"
 select u.*, array_agg(p)
     from users u
     join posts p on p.author = u.id
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
 
-        let users = self.0
+        let users = self
+            .0
             .query(query, &[])?
             .iter()
             .map(|x| {
@@ -126,7 +131,7 @@ select u.*, array_agg(p)
             .collect();
 
         Ok(users)
-   }
+    }
 }
 
 elephantry_benchmark::bench! {Connection}

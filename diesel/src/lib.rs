@@ -121,21 +121,23 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
-
-        let users = users::table.find(elephantry_benchmark::UUID).first::<User>(&mut self.0)?;
-        let posts = Post::belonging_to(&users).select(posts::all_columns).load::<Post>(&mut self.0)?.into_iter().collect();
+        let users = users::table
+            .find(elephantry_benchmark::UUID)
+            .first::<User>(&mut self.0)?;
+        let posts = Post::belonging_to(&users)
+            .select(posts::all_columns)
+            .load::<Post>(&mut self.0)?
+            .into_iter()
+            .collect();
 
         Ok((users, posts))
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
         let users = users::table.load(&mut self.0)?;
-        let posts: Vec<Post> = Post::belonging_to(&users)
-            .load(&mut self.0)?;
+        let posts: Vec<Post> = Post::belonging_to(&users).load(&mut self.0)?;
         let grouped_posts = posts.grouped_by(&users);
-        let users_and_posts = users.into_iter()
-            .zip(grouped_posts)
-            .collect();
+        let users_and_posts = users.into_iter().zip(grouped_posts).collect();
 
         Ok(users_and_posts)
     }

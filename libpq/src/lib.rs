@@ -15,7 +15,10 @@ impl User {
     fn from(result: &libpq::Result, x: usize) -> libpq::errors::Result<User> {
         let result = to_result(result)?;
 
-        let id = String::from_utf8(result.value(x, 0).unwrap().to_vec()).unwrap().parse().unwrap();
+        let id = String::from_utf8(result.value(x, 0).unwrap().to_vec())
+            .unwrap()
+            .parse()
+            .unwrap();
         let name = String::from_utf8(result.value(x, 1).unwrap().to_vec()).unwrap();
         let hair_color = if result.is_null(x, 2) {
             None
@@ -36,8 +39,7 @@ impl User {
                 .split(",")
                 .map(|x| x.trim_matches('"').to_string())
                 .collect()
-        }
-        else {
+        } else {
             Vec::new()
         };
 
@@ -58,7 +60,8 @@ fn to_result(result: &libpq::Result) -> libpq::errors::Result<&libpq::Result> {
 
     match result.status() {
         BadResponse | FatalError | NonFatalError => {
-            let error = result.error_message()?
+            let error = result
+                .error_message()?
                 .map(|x| libpq::errors::Error::Backend(x.to_string()))
                 .unwrap_or(libpq::errors::Error::Unknow);
 
@@ -76,8 +79,7 @@ impl elephantry_benchmark::Client for Connection {
     type Post = String;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
-        libpq::Connection::new(dsn)
-            .map(Self)
+        libpq::Connection::new(dsn).map(Self)
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
@@ -94,7 +96,10 @@ impl elephantry_benchmark::Client for Connection {
             &self.0,
             "insert into users (name, hair_color) values ($1, $2)",
             &[],
-            &[Some(name.as_bytes().to_vec()), Some(hair_color.as_bytes().to_vec())],
+            &[
+                Some(name.as_bytes().to_vec()),
+                Some(hair_color.as_bytes().to_vec()),
+            ],
             &[libpq::Format::Text, libpq::Format::Text],
             libpq::Format::Text,
         );
@@ -103,7 +108,10 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        let result = libpq::Connection::exec(&self.0, "select id, name, hair_color, created_at from users");
+        let result = libpq::Connection::exec(
+            &self.0,
+            "select id, name, hair_color, created_at from users",
+        );
 
         let mut users = Vec::new();
 
@@ -115,13 +123,19 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        let result = libpq::Connection::exec(&self.0, "select id, name, hair_color, created_at from users");
+        let result = libpq::Connection::exec(
+            &self.0,
+            "select id, name, hair_color, created_at from users",
+        );
 
         User::from(&result, 0)
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let result = libpq::Connection::exec(&self.0, "select id, name, hair_color, created_at from users");
+        let result = libpq::Connection::exec(
+            &self.0,
+            "select id, name, hair_color, created_at from users",
+        );
 
         User::from(&result, 9_999)
     }
@@ -132,7 +146,7 @@ impl elephantry_benchmark::Client for Connection {
 
         let result = libpq::Connection::exec_params(
             &self.0,
-"select u.*, array_agg(p.title)
+            "select u.*, array_agg(p.title)
     from users u
     join posts p on p.author = u.id
     where u.id = $1
@@ -152,7 +166,7 @@ impl elephantry_benchmark::Client for Connection {
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
         let result = libpq::Connection::exec_params(
             &self.0,
-"select u.*, array_agg(p.title)
+            "select u.*, array_agg(p.title)
     from users u
     join posts p on p.author = u.id
     group by u.id, u.name, u.hair_color, u.created_at

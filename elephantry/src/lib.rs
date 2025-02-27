@@ -99,8 +99,7 @@ impl elephantry_benchmark::Client for Connection {
     type Post = post::Entity;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
-        elephantry::Pool::new(dsn)
-            .map(Self)
+        elephantry::Pool::new(dsn).map(Self)
     }
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
@@ -108,7 +107,8 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
-        self.0.insert_one::<user::Model>(&user::Entity::new())
+        self.0
+            .insert_one::<user::Model>(&user::Entity::new())
             .map(|_| ())
     }
 
@@ -119,7 +119,8 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        let results = self.0
+        let results = self
+            .0
             .find_all::<user::Model>(None)?
             .collect::<Vec<Self::User>>();
 
@@ -139,7 +140,9 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn one_relation(&mut self) -> Result<(Self::User, Vec<Self::Post>), Self::Error> {
-        let user = self.0.model::<user::Model>()
+        let user = self
+            .0
+            .model::<user::Model>()
             .user_with_posts(elephantry_benchmark::UUID)?;
         let posts = user.posts.clone();
 
@@ -147,17 +150,15 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn all_relations(&mut self) -> Result<Vec<(Self::User, Vec<Self::Post>)>, Self::Error> {
-        let users = self.0.model::<user::Model>()
-            .users_with_posts()?;
+        let users = self.0.model::<user::Model>().users_with_posts()?;
 
         Ok(users
             .iter()
             .map(|x| {
-                let posts= x.posts.clone();
+                let posts = x.posts.clone();
                 ((*x).clone(), posts)
             })
-            . collect()
-        )
+            .collect())
     }
 }
 
