@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 chrono = "0.4"
-libpq = "3.0"
+libpq = "5.0"
 
 [dependencies.elephantry-benchmark]
 path = "../"

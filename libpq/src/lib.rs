@@ -97,8 +97,8 @@ impl elephantry_benchmark::Client for Connection {
             "insert into users (name, hair_color) values ($1, $2)",
             &[],
             &[
-                Some(name.as_bytes().to_vec()),
-                Some(hair_color.as_bytes().to_vec()),
+                Some(name.as_bytes()),
+                Some(hair_color.as_bytes()),
             ],
             &[libpq::Format::Text, libpq::Format::Text],
             libpq::Format::Text,
@@ -153,7 +153,7 @@ impl elephantry_benchmark::Client for Connection {
     group by u.id, u.name, u.hair_color, u.created_at
             ",
             &[libpq::types::UUID.oid],
-            &[Some(id)],
+            &[Some(&id)],
             &[libpq::Format::Text, libpq::Format::Text],
             libpq::Format::Text,
         );
