@@ -39,7 +39,7 @@ impl elephantry_benchmark::Client for Connection {
     type Post = Post;
 
     fn create(dsn: &str) -> Result<Self, Self::Error> {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             use sqlx::Connection;
             sqlx::PgConnection::connect(dsn).await.map(Self)
         })
@@ -47,11 +47,11 @@ impl elephantry_benchmark::Client for Connection {
 
     fn exec(&mut self, query: &str) -> Result<(), Self::Error> {
         use sqlx::Executor;
-        async_std::task::block_on(self.0.execute(query)).map(|_| ())
+        smol::block_on(self.0.execute(query)).map(|_| ())
     }
 
     fn insert_user(&mut self) -> Result<(), Self::Error> {
-        async_std::task::block_on({
+        smol::block_on({
             sqlx::query("INSERT INTO users (name, hair_color) VALUES ($1, $2)")
                 .bind("User")
                 .bind("hair color")
@@ -63,7 +63,7 @@ impl elephantry_benchmark::Client for Connection {
     fn insert_users(&mut self, n: usize) -> Result<(), Self::Error> {
         let names = vec!["User"; n];
         let colors = vec!["hair color"; n];
-        async_std::task::block_on({
+        smol::block_on({
             sqlx::query(
                 "INSERT INTO users (name, hair_color) select * from unnest($1::text[], $2::text[])",
             )
@@ -75,7 +75,7 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_all(&mut self) -> Result<Vec<Self::User>, Self::Error> {
-        async_std::task::block_on({
+        smol::block_on({
             sqlx::query_as::<_, User>(
                 "SELECT id, name, hair_color, created_at, null as posts FROM users",
             )
@@ -84,7 +84,7 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_first(&mut self) -> Result<Self::User, Self::Error> {
-        async_std::task::block_on({
+        smol::block_on({
             sqlx::query_as::<_, User>(
                 "SELECT id, name, hair_color, created_at, null as posts FROM users",
             )
@@ -93,7 +93,7 @@ impl elephantry_benchmark::Client for Connection {
     }
 
     fn fetch_last(&mut self) -> Result<Self::User, Self::Error> {
-        let results = async_std::task::block_on({
+        let results = smol::block_on({
             sqlx::query_as::<_, User>(
                 "SELECT id, name, hair_color, created_at, null as posts FROM users",
             )
@@ -111,7 +111,7 @@ select u.*, array_agg(p) as posts
     where u.id = $1
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
-        let user = async_std::task::block_on({
+        let user = smol::block_on({
             sqlx::query_as::<_, User>(query)
                 .bind(elephantry_benchmark::UUID)
                 .fetch_one(&mut self.0)
@@ -129,7 +129,7 @@ select u.*, array_agg(p) as posts
     group by u.id, u.name, u.hair_color, u.created_at
 "#;
         let users =
-            async_std::task::block_on(sqlx::query_as::<_, User>(query).fetch_all(&mut self.0))?
+            smol::block_on(sqlx::query_as::<_, User>(query).fetch_all(&mut self.0))?
                 .iter()
                 .map(|u| (u.clone(), u.posts.clone().map(Posts::to_vec).unwrap()))
                 .collect();
